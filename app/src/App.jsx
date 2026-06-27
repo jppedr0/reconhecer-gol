@@ -3,6 +3,7 @@ import {
   Home, Award, Send, Trophy, Mail, Heart, Search,
   Sparkles, Medal, Crown, ChevronRight, ChevronLeft, ArrowRight, Star, Zap, Users, Check, Pencil, X,
   BadgeCheck, Bell, PartyPopper, TrendingUp, Quote, Gift, Flame,
+  Shield, Settings, LogOut, Lock, Trash2, Sliders, CalendarCheck, Eye, EyeOff,
 } from "lucide-react";
 
 /* ============================================================
@@ -64,7 +65,7 @@ const PEOPLE = [
     bio: "Power BI é comigo mesmo." },
   { id: 5, name: "Letícia Rocha", role: "Cientista de Dados", area: "Inteligência", initials: "LR", bio: "" },
   { id: 6, name: "Bruno Carvalho", role: "Analista de Processos", area: "Compras", initials: "BC", bio: "" },
-  { id: 7, name: "Você", role: "Inteligência", area: "Compras", initials: "EU", bio: "" },
+  { id: 7, name: "Você", role: "Inteligência", area: "Compras", initials: "EU", bio: "", admin: true },
 ];
 
 const seedRecs = [
@@ -161,12 +162,20 @@ function EloMark({ size = 36 }) {
 //  APP
 // ============================================================
 export default function App() {
+  const [logado, setLogado] = useState(false);
   const [tab, setTab] = useState("home");
   const [recs, setRecs] = useState(seedRecs);
   const [people, setPeople] = useState(PEOPLE);
   const [liked, setLiked] = useState({});
   const [profileId, setProfileId] = useState(null);
   const [toast, setToast] = useState(null);
+  const [cats, setCats] = useState(CATEGORIES);
+  const [hall, setHall] = useState(HALL);
+
+  const eu = personById(ME, people);
+  const souAdmin = eu?.admin === true;
+
+  function notify(msg, ms = 2400) { setToast(msg); setTimeout(() => setToast(null), ms); }
 
   function toggleLike(id) {
     setLiked((l) => ({ ...l, [id]: !l[id] }));
@@ -174,24 +183,43 @@ export default function App() {
   }
   function addRec(rec) {
     setRecs((rs) => [{ ...rec, id: Date.now(), fromId: ME, likes: 0, days: 0 }, ...rs]);
-    setToast(rec.public ? "Reconhecimento publicado no mural!" : "Mensagem privada enviada!");
-    setTimeout(() => setToast(null), 2600);
+    notify(rec.public ? "Reconhecimento publicado no mural!" : "Mensagem privada enviada!", 2600);
     setTab(rec.public ? "home" : "mensagens");
   }
   function openProfile(id) { setProfileId(id); setTab("perfil"); }
   function saveBio(id, bio) {
     setPeople((ps) => ps.map((p) => p.id === id ? { ...p, bio } : p));
-    setToast("Bio atualizada!"); setTimeout(() => setToast(null), 2200);
+    notify("Bio atualizada!", 2200);
+  }
+  // ---- Funções do Admin ----
+  function removerRec(id) {
+    setRecs((rs) => rs.filter((r) => r.id !== id));
+    notify("Reconhecimento removido.");
+  }
+  function mudarPeso(catId, novoPeso) {
+    setCats((cs) => cs.map((c) => c.id === catId ? { ...c, weight: Math.max(0, novoPeso) } : c));
+  }
+  function fecharMes(ranking) {
+    const campeao = ranking[0];
+    if (!campeao) { notify("Sem reconhecimentos para fechar o mês."); return; }
+    const mesAtual = "Junho/2026";
+    setHall((h) => [{ month: mesAtual, name: campeao.person.name, initials: campeao.person.initials,
+      pts: campeao.pts, cat: "Destaque do mês" }, ...h]);
+    setRecs([]); setLiked({});
+    notify(`Mês fechado! ${campeao.person.name} foi para o Hall da Fama. 🏆`, 3200);
+    setTab("hall");
   }
 
   const ranking = useMemo(() => {
+    const pesoDe = (catId) => (cats.find((c) => c.id === catId)?.weight ?? 0);
+    const score = (rec) => pesoDe(rec.cat) + rec.likes * 0.2;
     const totals = {};
-    recs.forEach((r) => { totals[r.toId] = (totals[r.toId] || 0) + scoreOf(r); });
+    recs.forEach((r) => { totals[r.toId] = (totals[r.toId] || 0) + score(r); });
     return Object.entries(totals)
       .map(([id, pts]) => ({ person: personById(Number(id), people), pts: Math.round(pts * 10) / 10,
         count: recs.filter((r) => r.toId === Number(id)).length }))
       .filter((r) => r.person).sort((a, b) => b.pts - a.pts);
-  }, [recs, people]);
+  }, [recs, people, cats]);
 
   const NAV = [
     { id: "home", label: "Mural", icon: Home },
@@ -199,7 +227,13 @@ export default function App() {
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "hall", label: "Hall da Fama", icon: Award },
     { id: "mensagens", label: "Mensagens", icon: Mail },
+    ...(souAdmin ? [{ id: "admin", label: "Admin", icon: Shield }] : []),
   ];
+
+  // Tela de login aparece antes de tudo
+  if (!logado) {
+    return <Login onEntrar={() => setLogado(true)} />;
+  }
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif",
@@ -275,10 +309,12 @@ export default function App() {
           ranking={ranking} openProfile={openProfile} goReconhecer={() => setTab("reconhecer")} />}
         {tab === "reconhecer" && <Reconhecer people={people} onSend={addRec} />}
         {tab === "ranking" && <Ranking ranking={ranking} openProfile={openProfile} />}
-        {tab === "hall" && <Hall />}
+        {tab === "hall" && <Hall hall={hall} />}
         {tab === "mensagens" && <Mensagens recs={recs} people={people} openProfile={openProfile} />}
         {tab === "perfil" && <Perfil id={profileId} people={people} recs={recs} ranking={ranking}
           liked={liked} toggleLike={toggleLike} goReconhecer={() => setTab("reconhecer")} saveBio={saveBio} />}
+        {tab === "admin" && souAdmin && <Admin recs={recs} people={people} cats={cats} ranking={ranking}
+          removerRec={removerRec} mudarPeso={mudarPeso} fecharMes={() => fecharMes(ranking)} />}
       </main>
 
       </div>
@@ -655,7 +691,8 @@ function Ranking({ ranking, openProfile }) {
 // ============================================================
 //  HALL DA FAMA
 // ============================================================
-function Hall() {
+function Hall({ hall }) {
+  const lista = hall || HALL;
   return (
     <div className="fade">
       <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
@@ -666,7 +703,7 @@ function Hall() {
         Os destaques que já receberam o mimo da Inteligência. Cada elo conta uma história.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-        {HALL.map((h) => (
+        {lista.map((h) => (
           <div key={h.month} className="lift glow" style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`,
             borderRadius: 18, border: `1px solid ${C.stroke}`, padding: 22, textAlign: "center",
             position: "relative", overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
@@ -880,6 +917,237 @@ function Stat({ n, label, hi }) {
     </div>
   );
 }
+
+// ============================================================
+//  LOGIN (visual — não autentica de verdade ainda)
+// ============================================================
+function Login({ onEntrar }) {
+  const [heroErro, setHeroErro] = useState(false);
+  const [eloErro, setEloErro] = useState(false);
+  const [cabecaErro, setCabecaErro] = useState(false);
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", position: "relative", overflow: "hidden",
+      fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif", background: C.black }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+        * { box-sizing: border-box; }
+        html, body, #root { margin:0; padding:0; background:${C.black}; }
+        button { font-family: inherit; cursor: pointer; border: none; }
+        .lift { transition: transform .15s ease, box-shadow .15s ease; }
+        .lift:hover { transform: translateY(-2px); }
+        .fade { animation: fade .5s ease; }
+        @keyframes fade { from {opacity:0; transform:translateY(12px);} to {opacity:1; transform:none;} }
+        @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+      `}</style>
+
+      {/* Fundo: foto do avião */}
+      {!heroErro && (
+        <img src={ASSETS.aviao} alt="" onError={() => setHeroErro(true)}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }} />
+      )}
+      {/* Overlay escuro com brilho laranja */}
+      <div style={{ position: "absolute", inset: 0,
+        background: `radial-gradient(900px 600px at 75% 30%, rgba(255,112,32,0.25) 0%, transparent 60%), linear-gradient(120deg, ${C.black}F2 0%, ${C.black}E8 50%, rgba(219,80,20,0.25) 130%)` }} />
+      {/* Grafismo de elos sutil */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.06, pointerEvents: "none",
+        backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "500px", backgroundRepeat: "repeat", mixBlendMode: "screen" }} />
+      {/* elo grande decorativo flutuando */}
+      {!eloErro && (
+        <img src={ASSETS.elo} alt="" onError={() => setEloErro(true)}
+          style={{ position: "absolute", right: "-6%", bottom: "-10%", width: 420, opacity: 0.12,
+            animation: "float 6s ease-in-out infinite", pointerEvents: "none" }} />
+      )}
+
+      {/* Card central de login */}
+      <div className="fade" style={{ position: "relative", margin: "auto", width: "100%", maxWidth: 440, padding: "0 22px" }}>
+        <div style={{ background: `linear-gradient(180deg, ${C.card}EE, ${C.bg800}EE)`, backdropFilter: "blur(16px)",
+          borderRadius: 24, border: `1px solid ${C.strokeHi}`, padding: "40px 36px",
+          boxShadow: `0 30px 80px rgba(0,0,0,0.6), 0 0 40px ${C.orangeGlow}` }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 8 }}>
+            {!eloErro && <img src={ASSETS.elo} alt="GOL" style={{ height: 40 }} onError={() => setEloErro(true)} />}
+            {!cabecaErro && <img src={ASSETS.cabeca} alt="" style={{ height: 38, filter: "drop-shadow(0 0 6px rgba(255,112,32,0.4))" }} onError={() => setCabecaErro(true)} />}
+          </div>
+          <h1 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, color: C.white, margin: "10px 0 2px", letterSpacing: "-0.02em" }}>
+            Reconhecer
+          </h1>
+          <p style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: C.orange, letterSpacing: "0.16em", margin: "0 0 6px" }}>
+            INTELIGÊNCIA · COMPRAS
+          </p>
+          <p style={{ textAlign: "center", fontSize: 14, color: C.textMute, lineHeight: 1.5, margin: "16px 0 28px" }}>
+            Um gesto simples vira destaque. Entre para reconhecer quem faz a diferença no time.
+          </p>
+
+          <button onClick={onEntrar} className="lift" style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 11,
+            background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, color: C.white,
+            fontWeight: 700, fontSize: 15.5, padding: "14px", borderRadius: 12,
+            boxShadow: `0 10px 30px ${C.orangeGlow}` }}>
+            <MicrosoftIcon /> Entrar com conta Microsoft
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 22, justifyContent: "center" }}>
+            <Lock size={13} color={C.textDim} />
+            <span style={{ fontSize: 12, color: C.textDim }}>Acesso exclusivo para colaboradores GOL</span>
+          </div>
+        </div>
+        <p style={{ textAlign: "center", fontSize: 11.5, color: C.textDim, marginTop: 20 }}>
+          Inteligência · Compras · GOL Linhas Aéreas
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Ícone Microsoft (4 quadradinhos)
+function MicrosoftIcon() {
+  return (
+    <span style={{ display: "inline-grid", gridTemplateColumns: "1fr 1fr", gap: 2, width: 18, height: 18 }}>
+      <span style={{ background: "#F25022", borderRadius: 1 }} />
+      <span style={{ background: "#7FBA00", borderRadius: 1 }} />
+      <span style={{ background: "#00A4EF", borderRadius: 1 }} />
+      <span style={{ background: "#FFB900", borderRadius: 1 }} />
+    </span>
+  );
+}
+
+// ============================================================
+//  ADMIN (painel restrito — só quem tem perfil admin)
+// ============================================================
+function Admin({ recs, people, cats, ranking, removerRec, mudarPeso, fecharMes }) {
+  const [confirmar, setConfirmar] = useState(false);
+  const publicRecs = recs.filter((r) => r.public);
+  const campeao = ranking[0];
+
+  return (
+    <div className="fade" style={{ maxWidth: 920, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <Shield size={24} color={C.orange} strokeWidth={2.4} /> Painel da Inteligência
+      </h1>
+      <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 26px" }}>
+        Área restrita. Aqui você gerencia o programa: fecha o mês, ajusta pontuações e modera o mural.
+      </p>
+
+      {/* Cards de resumo */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+        <AdminStat icon={Send} label="Reconhecimentos" value={recs.length} />
+        <AdminStat icon={Users} label="Pessoas ativas" value={ranking.length} />
+        <AdminStat icon={Crown} label="Líder atual" value={campeao ? campeao.person.name.split(" ")[0] : "—"} />
+      </div>
+
+      {/* Fechar o mês */}
+      <AdminCard title="Fechar o mês" icon={CalendarCheck}>
+        <p style={{ color: C.textMute, fontSize: 14, lineHeight: 1.5, margin: "0 0 14px" }}>
+          Ao fechar, o 1º lugar vai para o Hall da Fama e a contagem zera para o próximo mês.
+          {campeao && <> Campeão atual: <strong style={{ color: C.orange }}>{campeao.person.name}</strong> ({campeao.pts} pts).</>}
+        </p>
+        {!confirmar ? (
+          <button onClick={() => setConfirmar(true)} className="lift" style={{ ...btnPrimary }}>
+            <CalendarCheck size={16} strokeWidth={2.5} /> Fechar mês e premiar
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>Tem certeza? Isso zera o mês.</span>
+            <button onClick={fecharMes} className="lift" style={{ ...btnPrimary }}>
+              <Check size={16} strokeWidth={2.6} /> Confirmar
+            </button>
+            <button onClick={() => setConfirmar(false)} style={{ ...btnGhost }}>Cancelar</button>
+          </div>
+        )}
+      </AdminCard>
+
+      {/* Ajustar pesos */}
+      <AdminCard title="Pesos das categorias" icon={Sliders}>
+        <p style={{ color: C.textMute, fontSize: 14, margin: "0 0 16px" }}>
+          Defina quanto cada categoria vale no ranking. As mudanças refletem na hora.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {cats.map((c) => {
+            const Icon = c.icon;
+            return (
+              <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 200,
+                  color: c.color, fontWeight: 700, fontSize: 14 }}>
+                  <Icon size={17} strokeWidth={2.5} /> {c.label}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={() => mudarPeso(c.id, c.weight - 1)} className="lift" style={pesoBtn}>−</button>
+                  <span style={{ minWidth: 54, textAlign: "center", fontWeight: 800, fontSize: 16, color: C.white }}>
+                    {c.weight} {c.weight === 1 ? "pt" : "pts"}
+                  </span>
+                  <button onClick={() => mudarPeso(c.id, c.weight + 1)} className="lift" style={pesoBtn}>+</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </AdminCard>
+
+      {/* Moderar mural */}
+      <AdminCard title="Moderar mural" icon={Eye}>
+        <p style={{ color: C.textMute, fontSize: 14, margin: "0 0 16px" }}>
+          Remova reconhecimentos impróprios. A remoção é imediata.
+        </p>
+        {publicRecs.length === 0 ? (
+          <div style={{ color: C.textDim, fontSize: 14, fontStyle: "italic" }}>Nenhum reconhecimento público no momento.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {publicRecs.map((r) => {
+              const from = personById(r.fromId, people);
+              const to = personById(r.toId, people);
+              return (
+                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+                  background: "rgba(0,0,0,0.25)", borderRadius: 12, border: `1px solid ${C.stroke}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: C.text }}>
+                      <strong style={{ color: C.white }}>{from?.name}</strong> → <strong style={{ color: C.orange }}>{to?.name}</strong>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: C.textMute, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.msg}</div>
+                  </div>
+                  <button onClick={() => removerRec(r.id)} className="lift" title="Remover" style={{
+                    display: "flex", alignItems: "center", gap: 6, color: "#FF6B6B", fontWeight: 650, fontSize: 13,
+                    background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.3)",
+                    padding: "7px 12px", borderRadius: 9 }}>
+                    <Trash2 size={14} strokeWidth={2.4} /> Remover
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </AdminCard>
+    </div>
+  );
+}
+
+function AdminStat({ icon: Icon, label, value }) {
+  return (
+    <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 14,
+      border: `1px solid ${C.stroke}`, padding: "16px 18px" }}>
+      <Icon size={18} color={C.orange} strokeWidth={2.4} />
+      <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginTop: 8 }}>{value}</div>
+      <div style={{ fontSize: 12.5, color: C.textMute, fontWeight: 600 }}>{label}</div>
+    </div>
+  );
+}
+
+function AdminCard({ title, icon: Icon, children }) {
+  return (
+    <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 18,
+      border: `1px solid ${C.stroke}`, padding: 22, marginBottom: 18, boxShadow: "0 8px 28px rgba(0,0,0,0.25)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
+        <Icon size={18} color={C.orange} strokeWidth={2.5} />
+        <h3 style={{ fontSize: 16, fontWeight: 750, margin: 0, color: C.white }}>{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const pesoBtn = { width: 32, height: 32, borderRadius: 9, background: "rgba(255,255,255,0.06)",
+  border: `1px solid ${C.stroke}`, color: C.white, fontSize: 18, fontWeight: 700, lineHeight: 1,
+  display: "flex", alignItems: "center", justifyContent: "center" };
 
 // ---------- estilos compartilhados (tema escuro) ----------
 const lbl = { display: "block", fontWeight: 700, fontSize: 14, marginBottom: 10, color: C.text };
