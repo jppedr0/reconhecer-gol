@@ -38,6 +38,8 @@ const C = {
    nome indicado e a imagem aparece sozinha.
    ============================================================ */
 const ASSETS = {
+  elo: "/elo-gol.png",                  // GOL-Simbolo-Pref-FundoClaro-RGB.png → renomear
+  eloClaro: "/elo-gol-claro.png",       // GOL-Simbolo-Pref-FundoEscuro-RGB.png → renomear (versão p/ fundo escuro)
   cabeca: "/inteligencia-cabeca.png",   // PNG_CABEÇA_-_Sem_fundo.png  → renomear
   aviao: "/aviao-gol.jpeg",             // GOL_AIRCRAFT_737_262.jpeg   → renomear
 };
@@ -201,7 +203,13 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif",
-      background: C.bg, minHeight: "100vh", color: C.graphite }}>
+      minHeight: "100vh", color: C.graphite,
+      background: `
+        radial-gradient(circle at 12% 8%, ${C.orangeSoft}88 0%, transparent 38%),
+        radial-gradient(circle at 88% 92%, ${C.grayLight}55 0%, transparent 42%),
+        linear-gradient(180deg, ${C.offWhite} 0%, ${C.bg} 100%)
+      `,
+      backgroundAttachment: "fixed" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
@@ -220,18 +228,18 @@ export default function App() {
         borderBottom: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "12px 22px",
           display: "flex", alignItems: "center", gap: 14 }}>
-          {/* LOGO: elo + cabeça + escrita */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <EloMark size={36} />
-            <div style={{ width: 1, height: 30, background: C.line }} />
-            <CabecaIntel size={32} />
-            <div style={{ lineHeight: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 19, letterSpacing: "-0.02em", color: C.graphite }}>
+          {/* LOGO: elo oficial + cabeça + escrita alinhada */}
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <EloMark size={34} />
+            <div style={{ width: 1, height: 28, background: C.line }} />
+            <CabecaIntel size={30} />
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1 }}>
+              <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: "-0.02em", color: C.graphite, display: "block" }}>
                 Reconhecer
-              </div>
-              <div style={{ fontSize: 10.5, color: C.gray, fontWeight: 700, letterSpacing: "0.08em", marginTop: 3 }}>
+              </span>
+              <span style={{ fontSize: 10.5, color: C.gray, fontWeight: 700, letterSpacing: "0.05em", marginTop: 4, display: "block" }}>
                 INTELIGÊNCIA · GOL
-              </div>
+              </span>
             </div>
           </div>
           <nav style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
@@ -276,12 +284,17 @@ export default function App() {
   );
 }
 
-// ---------- Marca "elo" oficial (dois aros entrelaçados: laranja + cinza) ----------
-function EloMark({ size = 36 }) {
-  // Conforme brandbook: círculos interligados, cores contrastantes (laranja + cinza claro)
+// ---------- Marca "elo" oficial GOL (imagem real, com fallback) ----------
+function EloMark({ size = 36, claro = false }) {
+  const [erro, setErro] = useState(false);
+  if (!erro) {
+    return <img src={claro ? ASSETS.eloClaro : ASSETS.elo} alt="GOL" onError={() => setErro(true)}
+      style={{ height: size, width: "auto", display: "block" }} />;
+  }
+  // Fallback: desenho dos dois aros enquanto a imagem real não está em /public
   return (
-    <svg width={size} height={size} viewBox="0 0 48 40" fill="none" aria-label="GOL">
-      <circle cx="28" cy="20" r="11" stroke={C.grayLight} strokeWidth="6" />
+    <svg width={size * 1.2} height={size} viewBox="0 0 48 40" fill="none" aria-label="GOL">
+      <circle cx="28" cy="20" r="11" stroke={claro ? "#fff" : C.grayLight} strokeWidth="6" />
       <circle cx="18" cy="20" r="11" stroke={C.orange} strokeWidth="6" />
     </svg>
   );
@@ -401,18 +414,19 @@ function RecCard({ rec, people, liked, toggleLike, openProfile }) {
   return (
     <article className="lift" style={{ background: C.white, borderRadius: 18,
       border: `1px solid ${C.line}`, padding: "18px 20px" }}>
-      {/* Cabeçalho: avatar + texto alinhados pelo topo, sem desencaixe */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 11, marginBottom: 13 }}>
-        <button onClick={() => openProfile(from.id)} style={{ marginTop: 1 }}><Avatar p={from} size={40} /></button>
+      {/* Cabeçalho: avatar centralizado verticalmente com o bloco de texto */}
+      <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
+        <button onClick={() => openProfile(from.id)}><Avatar p={from} size={42} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* linha 1: quem reconheceu quem — alinhado na mesma baseline */}
-          <div style={{ fontSize: 14, lineHeight: 1.45, display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "0 5px" }}>
+          {/* linha 1: quem reconheceu quem */}
+          <div style={{ fontSize: 14, lineHeight: 1.3, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0 5px" }}>
             <button onClick={() => openProfile(from.id)} style={{ fontWeight: 700, color: C.graphite }}>{from.name}</button>
             <span style={{ color: C.gray }}>reconheceu</span>
             <button onClick={() => openProfile(to.id)} style={{ fontWeight: 700, color: C.orangeDeep }}>{to.name}</button>
+            {/* tempo na MESMA linha, separado por ponto */}
+            <span style={{ color: C.grayLight }}>·</span>
+            <span style={{ fontSize: 12.5, color: C.gray, fontWeight: 500 }}>{timeAgo(rec.days)}</span>
           </div>
-          {/* linha 2: tempo — agora logo abaixo, sem flutuar */}
-          <div style={{ fontSize: 12, color: C.gray, fontWeight: 500, marginTop: 3 }}>{timeAgo(rec.days)}</div>
         </div>
         <div style={{ flexShrink: 0 }}><CatChip catId={rec.cat} /></div>
       </div>
@@ -714,8 +728,9 @@ function Perfil({ id, people, recs, ranking, liked, toggleLike, goReconhecer, sa
 
   return (
     <div className="fade" style={{ maxWidth: 760, margin: "0 auto" }}>
-      <div style={{ background: C.white, borderRadius: 20, border: `1px solid ${C.line}`, overflow: "hidden", marginBottom: 22 }}>
-        <div style={{ height: 110, background: `linear-gradient(100deg, ${C.graphite}, ${C.orangeDeep})`, position: "relative" }}>
+      <div style={{ background: C.white, borderRadius: 20, border: `1px solid ${C.line}`, marginBottom: 22 }}>
+        <div style={{ height: 110, background: `linear-gradient(100deg, ${C.graphite}, ${C.orangeDeep})`,
+          position: "relative", borderRadius: "20px 20px 0 0", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: -16, top: -10, opacity: 0.14 }}>
             <svg width="150" height="150" viewBox="0 0 48 40" fill="none">
               <circle cx="28" cy="20" r="11" stroke="#fff" strokeWidth="2.4" />
@@ -723,10 +738,13 @@ function Perfil({ id, people, recs, ranking, liked, toggleLike, goReconhecer, sa
             </svg>
           </div>
         </div>
-        <div style={{ padding: "0 26px 22px" }}>
-          {/* Avatar sobe sobre a capa */}
-          <div style={{ marginTop: -42, marginBottom: 12, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-            <div style={{ border: `4px solid ${C.white}`, borderRadius: "50%", width: "fit-content" }}><Avatar p={p} size={84} /></div>
+        <div style={{ padding: "0 28px 24px", textAlign: "left", position: "relative", zIndex: 2 }}>
+          {/* Avatar sobe sobre a capa (z-index garante que fica na frente) */}
+          <div style={{ marginTop: -42, marginBottom: 12, display: "flex", alignItems: "flex-end", justifyContent: "space-between", position: "relative", zIndex: 2 }}>
+            <div style={{ border: `4px solid ${C.white}`, borderRadius: "50%", width: "fit-content", lineHeight: 0,
+              boxShadow: "0 4px 12px rgba(55,50,45,0.2)" }}>
+              <Avatar p={p} size={80} />
+            </div>
             {!ehMeu && (
               <button onClick={goReconhecer} className="lift" style={{ ...btnPrimary, marginBottom: 4 }}>
                 <Send size={15} strokeWidth={2.6} /> Reconhecer
@@ -734,7 +752,7 @@ function Perfil({ id, people, recs, ranking, liked, toggleLike, goReconhecer, sa
             )}
           </div>
           {/* Nome e cargo ficam abaixo da capa, no fundo branco */}
-          <div>
+          <div style={{ textAlign: "left" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>{p.name}</h1>
             <div style={{ color: C.gray, fontSize: 14, fontWeight: 600, marginTop: 3 }}>
               {p.role} · <span style={{ color: C.orangeDeep }}>{p.area}</span>
