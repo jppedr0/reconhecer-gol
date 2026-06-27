@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import {
   Home, Award, Send, Trophy, Mail, Heart, Search,
-  Sparkles, Medal, Crown, ChevronRight, Star, Zap, Users, Check, Pencil, X,
+  Sparkles, Medal, Crown, ChevronRight, ChevronLeft, ArrowRight, Star, Zap, Users, Check, Pencil, X,
+  BadgeCheck, Bell, PartyPopper, TrendingUp, Quote, Gift, Flame,
 } from "lucide-react";
 
 /* ============================================================
@@ -40,6 +41,10 @@ const ASSETS = {
   cabeca: "/inteligencia-cabeca.png",
   aviao: "/aviao-gol.jpeg",
   assinatura: "/assinatura-escuro.png", // assinatura campanha fundo escuro
+  tripulacao: "/tripulacao.png",     // Tripulação-01.png → renomear
+  mulherCel: "/mulher-celular.png",  // Mulher no celular-01.png → renomear
+  madrugol: "/madrugol.png",         // madrugol → pessoa dormindo no celular
+  grafismoElos: "/grafismo-elos.png",// padrão de elos para textura de fundo
 };
 
 const CATEGORIES = [
@@ -198,17 +203,22 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif",
-      minHeight: "100vh", color: C.text,
+      minHeight: "100vh", color: C.text, overflowX: "hidden",
       background: `
         radial-gradient(1200px 600px at 80% -5%, rgba(255,112,32,0.16) 0%, transparent 55%),
         radial-gradient(900px 500px at 0% 100%, rgba(255,112,32,0.08) 0%, transparent 50%),
         linear-gradient(180deg, ${C.bg900} 0%, ${C.black} 100%)
       `,
-      backgroundAttachment: "fixed" }}>
+      backgroundAttachment: "fixed", position: "relative" }}>
+      {/* Textura de elos GOL ao fundo (bem sutil) */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", opacity: 0.05,
+        backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "600px", backgroundRepeat: "repeat",
+        mixBlendMode: "screen" }} />
+      <div style={{ position: "relative", zIndex: 1 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
-        body { background: ${C.black}; }
+        html, body, #root { margin: 0 !important; padding: 0 !important; border: 0 !important; background: ${C.black}; width: 100%; max-width: 100%; overflow-x: hidden; }
         button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
         .lift { transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease; }
         .lift:hover { transform: translateY(-2px); }
@@ -229,7 +239,7 @@ export default function App() {
       <header style={{ position: "sticky", top: 0, zIndex: 40,
         background: "rgba(14,13,12,0.72)", backdropFilter: "blur(14px)",
         borderBottom: `1px solid ${C.stroke}` }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "12px 22px",
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "12px 22px",
           display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
             <EloMark size={34} />
@@ -260,7 +270,7 @@ export default function App() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1080, margin: "0 auto", padding: "26px 22px 60px" }}>
+      <main style={{ maxWidth: 1600, margin: "0 auto", padding: "26px 22px 60px" }}>
         {tab === "home" && <Mural recs={recs} people={people} liked={liked} toggleLike={toggleLike}
           ranking={ranking} openProfile={openProfile} goReconhecer={() => setTab("reconhecer")} />}
         {tab === "reconhecer" && <Reconhecer people={people} onSend={addRec} />}
@@ -271,6 +281,7 @@ export default function App() {
           liked={liked} toggleLike={toggleLike} goReconhecer={() => setTab("reconhecer")} saveBio={saveBio} />}
       </main>
 
+      </div>
       {toast && (
         <div className="fade" style={{ position: "fixed", bottom: 26, left: "50%", transform: "translateX(-50%)",
           background: `linear-gradient(135deg, ${C.cardHi}, ${C.card})`, color: C.white,
@@ -289,34 +300,39 @@ export default function App() {
 // ============================================================
 function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconhecer }) {
   const [heroErro, setHeroErro] = useState(false);
+  const [tripErro, setTripErro] = useState(false);
   const publicRecs = recs.filter((r) => r.public);
   const leader = ranking[0];
 
   return (
     <div className="fade">
+      {/* Hero em CARD com borda (largura do conteúdo) */}
       <section style={{ position: "relative", overflow: "hidden", borderRadius: 24,
-        marginBottom: 26, background: C.black, border: `1px solid ${C.stroke}`,
+        marginBottom: 28, background: C.black, border: `1px solid ${C.stroke}`,
         boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
         {!heroErro && (
           <img src={ASSETS.aviao} alt="" onError={() => setHeroErro(true)}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.45 }} />
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.42 }} />
         )}
         <div style={{ position: "absolute", inset: 0,
-          background: `linear-gradient(105deg, ${C.black}F7 0%, ${C.black}E0 40%, rgba(219,80,20,0.35) 130%)` }} />
-        {/* brilho laranja no canto */}
-        <div style={{ position: "absolute", right: "-8%", top: "-30%", width: 360, height: 360,
+          background: `linear-gradient(105deg, ${C.black}F7 0%, ${C.black}DD 44%, rgba(219,80,20,0.32) 125%)` }} />
+        {/* brilho laranja */}
+        <div style={{ position: "absolute", right: "6%", top: "-45%", width: 480, height: 480,
           background: `radial-gradient(circle, ${C.orangeGlow} 0%, transparent 65%)`, pointerEvents: "none" }} />
-        <div style={{ position: "absolute", right: -30, top: -20, opacity: 0.08 }}>
-          <svg width="240" height="240" viewBox="0 0 48 40" fill="none">
-            <circle cx="28" cy="20" r="11" stroke="#fff" strokeWidth="2.2" />
-            <circle cx="18" cy="20" r="11" stroke="#fff" strokeWidth="2.2" />
-          </svg>
-        </div>
+        {/* Ilustração tripulação à direita, dentro do card */}
+        {!tripErro && (
+          <img src={ASSETS.tripulacao} alt="" onError={() => setTripErro(true)}
+            style={{ position: "absolute", right: "4%", bottom: 0, height: "116%",
+              width: "auto", objectFit: "contain", opacity: 0.96, pointerEvents: "none",
+              filter: "drop-shadow(0 0 40px rgba(0,0,0,0.5))", display: "block" }} />
+        )}
 
-        <div style={{ position: "relative", padding: "34px 36px", maxWidth: 600 }}>
+        <div style={{ position: "relative", padding: "40px 40px 42px", maxWidth: 600 }}>
           <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.16em",
-            color: C.orange, textTransform: "uppercase", display: "block", textAlign: "left" }}>Junho · Destaque do mês</span>
-          <h1 style={{ fontSize: 32, fontWeight: 800, margin: "12px 0 10px", letterSpacing: "-0.02em",
+            color: C.orange, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 7, textAlign: "left" }}>
+            <Sparkles size={14} strokeWidth={2.6} /> Junho · Destaque do mês
+          </span>
+          <h1 style={{ fontSize: 33, fontWeight: 800, margin: "12px 0 10px", letterSpacing: "-0.02em",
             lineHeight: 1.12, color: C.white, textAlign: "left" }}>
             Inteligência faz a gente voar.<br />
             <span style={{ background: `linear-gradient(120deg, ${C.orangeSoft}, ${C.orange})`,
@@ -324,7 +340,7 @@ function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconh
               Reconhecer faz a gente decolar.
             </span>
           </h1>
-          <p style={{ color: "rgba(242,237,230,0.78)", fontSize: 15, lineHeight: 1.5, margin: "0 0 22px", textAlign: "left" }}>
+          <p style={{ color: "rgba(242,237,230,0.78)", fontSize: 15, lineHeight: 1.5, margin: "0 0 22px", textAlign: "left", maxWidth: 440 }}>
             Todo início de mês a Inteligência celebra quem mais recebeu reconhecimentos. Um gesto simples vira destaque.
           </p>
           <button onClick={goReconhecer} className="lift" style={{
@@ -414,8 +430,12 @@ function RecCard({ rec, people, liked, toggleLike, openProfile }) {
         </div>
         <div style={{ flexShrink: 0 }}><CatChip catId={rec.cat} /></div>
       </div>
-      <p style={{ margin: "0 0 14px", fontSize: 15, lineHeight: 1.55, color: C.text,
-        fontFamily: "'Inter',sans-serif" }}>"{rec.msg}"</p>
+      <div style={{ position: "relative", margin: "0 0 14px" }}>
+        <Quote size={26} color={C.orange} fill={C.orange} strokeWidth={0}
+          style={{ position: "absolute", left: -2, top: -6, opacity: 0.18 }} />
+        <p style={{ margin: 0, paddingLeft: 16, fontSize: 15, lineHeight: 1.55, color: C.text,
+          fontFamily: "'Inter',sans-serif" }}>{rec.msg}</p>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <button onClick={() => toggleLike(rec.id)} style={{ display: "flex", alignItems: "center", gap: 7,
           padding: "7px 13px", borderRadius: 999, border: `1px solid ${liked ? C.orange + "66" : C.stroke}`,
@@ -448,7 +468,10 @@ function Reconhecer({ people, onSend }) {
 
   return (
     <div className="fade" style={{ maxWidth: 660, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white }}>Reconhecer alguém</h1>
+      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <Send size={22} color={C.orange} strokeWidth={2.4} /> Reconhecer alguém
+      </h1>
       <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 24px" }}>
         Um reconhecimento sincero vale mais que mil reuniões. Conte o que essa pessoa fez.
       </p>
@@ -553,7 +576,7 @@ function VisBtn({ on, onClick, icon: Icon, title, sub }) {
 function NavRow({ back, next, send, nextOk, sendOk }) {
   return (
     <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-      {back && <button onClick={back} style={btnGhost}>Voltar</button>}
+      {back && <button onClick={back} style={btnGhost}><ChevronLeft size={16} strokeWidth={2.6} /> Voltar</button>}
       <div style={{ flex: 1 }} />
       {next && <button onClick={next} disabled={!nextOk} className="lift" style={{ ...btnPrimary, opacity: nextOk ? 1 : 0.4, cursor: nextOk ? "pointer" : "not-allowed" }}>Continuar <ChevronRight size={17} strokeWidth={2.6} /></button>}
       {send && <button onClick={send} disabled={!sendOk} className="lift" style={{ ...btnPrimary, opacity: sendOk ? 1 : 0.4, cursor: sendOk ? "pointer" : "not-allowed" }}><Send size={16} strokeWidth={2.6} /> Enviar reconhecimento</button>}
@@ -571,7 +594,10 @@ function Ranking({ ranking, openProfile }) {
 
   return (
     <div className="fade">
-      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white }}>Ranking de junho</h1>
+      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <Trophy size={24} color={C.orange} strokeWidth={2.4} /> Ranking de junho
+      </h1>
       <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 28px" }}>
         Pontuação = peso da categoria + curtidas no mural (0,2 cada). Zera todo dia 1º.
       </p>
@@ -632,7 +658,10 @@ function Ranking({ ranking, openProfile }) {
 function Hall() {
   return (
     <div className="fade">
-      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white }}>Hall da Fama</h1>
+      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <Award size={24} color={C.orange} strokeWidth={2.4} /> Hall da Fama
+      </h1>
       <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 28px" }}>
         Os destaques que já receberam o mimo da Inteligência. Cada elo conta uma história.
       </p>
@@ -665,19 +694,33 @@ function Hall() {
 //  MENSAGENS
 // ============================================================
 function Mensagens({ recs, people, openProfile }) {
+  const [ilustraErro, setIlustraErro] = useState(false);
   const mine = recs.filter((r) => !r.public && r.toId === ME);
   return (
     <div className="fade" style={{ maxWidth: 680, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white }}>Mensagens privadas</h1>
+      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <Mail size={24} color={C.orange} strokeWidth={2.4} /> Mensagens privadas
+      </h1>
       <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 24px" }}>
         Reconhecimentos enviados só pra você. Eles também contam pontos no ranking.
       </p>
       {mine.length === 0 ? (
         <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 18,
-          border: `1px dashed ${C.strokeHi}`, padding: 44, textAlign: "center" }}>
-          <Mail size={34} color={C.textMute} style={{ marginBottom: 12 }} />
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: C.text }}>Nada por aqui ainda</div>
-          <div style={{ color: C.textMute, fontSize: 14 }}>Quando alguém te reconhecer em modo privado, aparece aqui.</div>
+          border: `1px dashed ${C.strokeHi}`, padding: "36px 44px", textAlign: "center",
+          position: "relative", overflow: "hidden" }}>
+          {/* brilho */}
+          <div style={{ position: "absolute", left: "50%", top: "-30%", width: 280, height: 200,
+            transform: "translateX(-50%)", background: `radial-gradient(circle, ${C.orangeGlow} 0%, transparent 70%)`, pointerEvents: "none" }} />
+          {!ilustraErro ? (
+            <img src={ASSETS.madrugol} alt="" onError={() => setIlustraErro(true)}
+              style={{ width: 180, height: "auto", margin: "0 auto 8px", display: "block", position: "relative",
+                filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.4))" }} />
+          ) : (
+            <Mail size={34} color={C.textMute} style={{ marginBottom: 12 }} />
+          )}
+          <div style={{ position: "relative", fontWeight: 700, fontSize: 16, marginBottom: 4, color: C.text }}>Nada por aqui ainda</div>
+          <div style={{ position: "relative", color: C.textMute, fontSize: 14 }}>Quando alguém te reconhecer em modo privado, aparece aqui.</div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
