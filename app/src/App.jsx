@@ -65,7 +65,7 @@ const PEOPLE = [
     bio: "Power BI é comigo mesmo." },
   { id: 5, name: "Letícia Rocha", role: "Cientista de Dados", area: "Inteligência", initials: "LR", bio: "" },
   { id: 6, name: "Bruno Carvalho", role: "Analista de Processos", area: "Compras", initials: "BC", bio: "" },
-  { id: 7, name: "Você", role: "Jovem Aprendiz", area: "Inteligência de Suprimentos", initials: "EU", bio: "", admin: true },
+  { id: 7, name: "Você", role: "Inteligência", area: "Compras", initials: "EU", bio: "", admin: true },
 ];
 
 const seedRecs = [
@@ -128,6 +128,30 @@ function CabecaIntel({ size = 34 }) {
   );
 }
 
+// ---------- Tooltip de ajuda ----------
+function Ajuda({ texto }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setAberto(true)} onMouseLeave={() => setAberto(false)}>
+      <button onClick={() => setAberto((a) => !a)} aria-label="Ajuda" style={{
+        width: 18, height: 18, borderRadius: "50%", border: `1px solid ${C.strokeHi}`,
+        background: "rgba(255,255,255,0.05)", color: C.textMute, fontSize: 11, fontWeight: 800,
+        display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, cursor: "help" }}>?</button>
+      {aberto && (
+        <span className="fade" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
+          transform: "translateX(-50%)", width: 260, zIndex: 50,
+          background: `linear-gradient(180deg, ${C.cardHi}, ${C.card})`, color: C.text,
+          border: `1px solid ${C.strokeHi}`, borderRadius: 12, padding: "11px 13px",
+          fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, textAlign: "left",
+          boxShadow: "0 12px 36px rgba(0,0,0,0.5)" }}>
+          {texto}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function CatChip({ catId, small }) {
   const c = catById(catId);
   const Icon = c.icon;
@@ -176,7 +200,7 @@ export default function App() {
     { id: 1, nome: "João Pereira", email: "joao.pereira@voegol.com.br", quando: "há 2 dias" },
     { id: 2, nome: "Ana Lima", email: "ana.lima@voegol.com.br", quando: "ontem" },
   ]);
-  const [aprovados, setAprovados] = useState(["jpomatos@voegol.com.br", "test@voegol.com.br"]);
+  const [aprovados, setAprovados] = useState(["jpomatos@voegol.com.br", "teste@voegol.com.br"]);
   // notificações para o usuário (quem te reconheceu)
   const [notifsLidas, setNotifsLidas] = useState(false);
 
@@ -191,9 +215,9 @@ export default function App() {
   }
   function addRec(rec) {
     setRecs((rs) => [{ ...rec, id: Date.now(), fromId: ME, likes: 0, days: 0 }, ...rs]);
-    notify(rec.public ? "Reconhecimento publicado no mural!" : "Mensagem privada enviada!", 2600);
-    setTab(rec.public ? "home" : "mensagens");
+    // a tela de sucesso (confete) é mostrada pelo próprio componente Reconhecer
   }
+  function irPara(t) { setTab(t); }
   function openProfile(id) { setProfileId(id); setTab("perfil"); }
   function saveBio(id, bio) {
     setPeople((ps) => ps.map((p) => p.id === id ? { ...p, bio } : p));
@@ -298,7 +322,19 @@ export default function App() {
         .glow:hover { box-shadow: 0 8px 30px ${C.orangeGlow} !important; border-color: ${C.strokeHi} !important; }
         .fade { animation: fade .4s ease; }
         @keyframes fade { from {opacity:0; transform:translateY(10px);} to {opacity:1; transform:none;} }
-        @media (prefers-reduced-motion: reduce){ .fade,.lift{animation:none;transition:none;} }
+        /* cascata: cada filho entra com leve atraso */
+        .cascata > * { opacity: 0; animation: subir .5s ease forwards; }
+        .cascata > *:nth-child(1){animation-delay:.04s}
+        .cascata > *:nth-child(2){animation-delay:.10s}
+        .cascata > *:nth-child(3){animation-delay:.16s}
+        .cascata > *:nth-child(4){animation-delay:.22s}
+        .cascata > *:nth-child(5){animation-delay:.28s}
+        .cascata > *:nth-child(6){animation-delay:.34s}
+        .cascata > *:nth-child(n+7){animation-delay:.40s}
+        @keyframes subir { from {opacity:0; transform:translateY(16px);} to {opacity:1; transform:none;} }
+        @keyframes pop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
+        @keyframes confeteCai { 0%{transform:translateY(-20px) rotate(0);opacity:1} 100%{transform:translateY(380px) rotate(540deg);opacity:0} }
+        @media (prefers-reduced-motion: reduce){ .fade,.lift,.cascata>*{animation:none;transition:none;opacity:1;} }
         button:focus-visible { outline: 2px solid ${C.orange}; outline-offset: 2px; }
         input:focus, textarea:focus { outline: none; border-color: ${C.orange} !important; }
         input::placeholder, textarea::placeholder { color: ${C.textDim}; }
@@ -320,7 +356,7 @@ export default function App() {
             <CabecaIntel size={30} />
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1, alignItems: "flex-start" }}>
               <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: "-0.02em", color: C.white, display: "block" }}>Reconhecer</span>
-              <span style={{ fontSize: 10.5, color: C.orange, fontWeight: 700, letterSpacing: "0.14em", marginTop: 4, display: "block" }}>INTELIGÊNCIA · COMPRAS</span>
+              <span style={{ fontSize: 10.5, color: C.orange, fontWeight: 700, letterSpacing: "0.14em", marginTop: 4, display: "block" }}>INTELIGÊNCIA DE SUPRIMENTOS</span>
             </div>
           </div>
           <nav style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
@@ -347,7 +383,7 @@ export default function App() {
       <main style={{ maxWidth: 1600, margin: "0 auto", padding: "26px 22px 60px" }}>
         {tab === "home" && <Mural recs={recs} people={people} liked={liked} toggleLike={toggleLike}
           ranking={ranking} openProfile={openProfile} goReconhecer={() => setTab("reconhecer")} />}
-        {tab === "reconhecer" && <Reconhecer people={people} onSend={addRec} />}
+        {tab === "reconhecer" && <Reconhecer people={people} onSend={addRec} irPara={irPara} />}
         {tab === "ranking" && <Ranking ranking={ranking} openProfile={openProfile} />}
         {tab === "hall" && <Hall hall={hall} />}
         {tab === "mensagens" && <Mensagens recs={recs} people={people} openProfile={openProfile} />}
@@ -359,6 +395,8 @@ export default function App() {
           addPessoa={addPessoa} removerPessoa={removerPessoa} toggleAdmin={toggleAdmin} openProfile={openProfile} />}
       </main>
 
+      {/* ---------- Rodapé ---------- */}
+      <Rodape />
       </div>
       {toast && (
         <div className="fade" style={{ position: "fixed", bottom: 26, left: "50%", transform: "translateX(-50%)",
@@ -370,6 +408,45 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+// ============================================================
+//  RODAPÉ
+// ============================================================
+function Rodape() {
+  const [assErro, setAssErro] = useState(false);
+  return (
+    <footer style={{ position: "relative", borderTop: `1px solid ${C.stroke}`, marginTop: 40,
+      background: `linear-gradient(180deg, transparent, ${C.bg900})` }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 22px 36px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <EloMark size={26} />
+            <span style={{ fontWeight: 800, fontSize: 16, color: C.white }}>Reconhecer</span>
+          </div>
+          <p style={{ fontSize: 12.5, color: C.textMute, margin: 0, maxWidth: 280, lineHeight: 1.5 }}>
+            Programa de reconhecimento da Inteligência de Suprimentos. Um gesto simples vira destaque.
+          </p>
+        </div>
+
+        {/* Assinatura da campanha (com fallback em texto) */}
+        <div style={{ textAlign: "right" }}>
+          {!assErro ? (
+            <img src={ASSETS.assinatura} alt="Inteligência faz a gente voar" onError={() => setAssErro(true)}
+              style={{ height: 34, width: "auto", opacity: 0.9, marginBottom: 8 }} />
+          ) : (
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.orange, marginBottom: 8 }}>
+              Inteligência faz a gente voar ✈
+            </div>
+          )}
+          <div style={{ fontSize: 11.5, color: C.textDim }}>
+            © {new Date().getFullYear()} GOL Linhas Aéreas · Inteligência de Suprimentos
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -582,7 +659,7 @@ function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconh
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="cascata" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {publicRecs.length === 0 ? (
               <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 16,
                 border: `1px dashed ${C.strokeHi}`, padding: 36, textAlign: "center", color: C.textMute, fontSize: 14 }}>
@@ -646,7 +723,7 @@ function RecCard({ rec, people, liked, toggleLike, openProfile }) {
       <div style={{ position: "relative", margin: "0 0 14px" }}>
         <Quote size={26} color={C.orange} fill={C.orange} strokeWidth={0}
           style={{ position: "absolute", left: -2, top: -6, opacity: 0.18 }} />
-        <p style={{ margin: 0, paddingLeft: 16, fontSize: 15, lineHeight: 1.55, color: C.text,
+        <p style={{ margin: 0, paddingLeft: 34, fontSize: 15, lineHeight: 1.55, color: C.text,
           fontFamily: "'Inter',sans-serif" }}>{rec.msg}</p>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -668,16 +745,34 @@ function RecCard({ rec, people, liked, toggleLike, openProfile }) {
 // ============================================================
 //  RECONHECER
 // ============================================================
-function Reconhecer({ people, onSend }) {
+function Reconhecer({ people, onSend, irPara }) {
   const [step, setStep] = useState(1);
   const [toId, setToId] = useState(null);
   const [cat, setCat] = useState(null);
   const [msg, setMsg] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [q, setQ] = useState("");
+  const [enviado, setEnviado] = useState(false);
 
+  const MIN = 9, MAX = 280;
   const options = people.filter((p) => p.id !== ME && p.name.toLowerCase().includes(q.toLowerCase()));
-  const canSend = toId && cat && msg.trim().length > 8;
+  const len = msg.trim().length;
+  const canSend = toId && cat && len >= MIN;
+  const alvo = personById(toId, people);
+
+  function enviar() {
+    onSend({ toId, cat, msg: msg.trim(), public: isPublic });
+    setEnviado(true);
+  }
+  function reiniciar() {
+    setStep(1); setToId(null); setCat(null); setMsg(""); setIsPublic(true); setQ(""); setEnviado(false);
+  }
+
+  // Tela de comemoração após enviar
+  if (enviado && alvo) {
+    return <SucessoReconhecimento alvo={alvo} cat={catById(cat)} isPublic={isPublic}
+      irPara={irPara} reiniciar={reiniciar} />;
+  }
 
   return (
     <div className="fade" style={{ maxWidth: 660, margin: "0 auto" }}>
@@ -756,20 +851,104 @@ function Reconhecer({ people, onSend }) {
         {step === 3 && (
           <div className="fade">
             <label style={lbl}>Escreva o reconhecimento</label>
-            <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={4}
+            <textarea value={msg} onChange={(e) => setMsg(e.target.value.slice(0, MAX))} rows={4}
               placeholder="Seja específico: o que a pessoa fez e o impacto que gerou..."
               style={{ ...inp, resize: "vertical", fontFamily: "'Inter',sans-serif", lineHeight: 1.5 }} />
-            <div style={{ fontSize: 12, color: msg.trim().length > 8 ? C.textMute : C.orange, marginTop: 6, fontWeight: 600 }}>
-              {msg.trim().length <= 8 ? "Conte um pouco mais (mín. 8 caracteres)" : `${msg.length} caracteres`}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+              {/* barrinha de progresso do tamanho */}
+              <div style={{ flex: 1, height: 5, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: 999, transition: "width .2s, background .2s",
+                  width: `${Math.min(100, (len / MIN) * 100)}%`,
+                  background: len >= MIN ? `linear-gradient(90deg, ${C.orange}, ${C.orangeDeep})` : C.strokeHi }} />
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
+                color: len >= MIN ? C.textMute : C.orange }}>
+                {len < MIN ? `Faltam ${MIN - len}` : `${len}/${MAX}`}
+              </span>
             </div>
+            {len < MIN && (
+              <div style={{ fontSize: 12, color: C.textDim, marginTop: 5 }}>Capriche um pouquinho mais — conte o impacto real.</div>
+            )}
             <label style={{ ...lbl, marginTop: 20 }}>Visibilidade</label>
             <div style={{ display: "flex", gap: 11 }}>
               <VisBtn on={isPublic} onClick={() => setIsPublic(true)} icon={Users} title="Mural público" sub="Todo o time vê e pode curtir" />
               <VisBtn on={!isPublic} onClick={() => setIsPublic(false)} icon={Mail} title="Privado" sub="Só a pessoa recebe a mensagem" />
             </div>
-            <NavRow back={() => setStep(2)} send={() => onSend({ toId, cat, msg: msg.trim(), public: isPublic })} sendOk={canSend} />
+            <NavRow back={() => setStep(2)} send={enviar} sendOk={canSend} />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Confete (comemoração) ----------
+function Confete() {
+  const cores = [C.orange, C.orangeSoft, C.gold, "#fff", C.orangeDeep];
+  const pecas = Array.from({ length: 40 }, (_, i) => i);
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", borderRadius: 20 }}>
+      {pecas.map((i) => {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 0.6;
+        const dur = 1.6 + Math.random() * 1.4;
+        const size = 6 + Math.random() * 7;
+        const cor = cores[i % cores.length];
+        const redondo = Math.random() > 0.5;
+        return (
+          <span key={i} style={{ position: "absolute", top: -20, left: `${left}%`,
+            width: size, height: size * (redondo ? 1 : 1.6),
+            background: cor, borderRadius: redondo ? "50%" : 2,
+            animation: `confeteCai ${dur}s ${delay}s ease-in forwards` }} />
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------- Tela de sucesso ao reconhecer ----------
+function SucessoReconhecimento({ alvo, cat, isPublic, irPara, reiniciar }) {
+  const Icon = cat.icon;
+  return (
+    <div className="fade" style={{ maxWidth: 560, margin: "0 auto" }}>
+      <div style={{ position: "relative", background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`,
+        borderRadius: 20, border: `1px solid ${C.strokeHi}`, padding: "48px 36px", textAlign: "center",
+        overflow: "hidden", boxShadow: `0 20px 60px rgba(0,0,0,0.4), 0 0 50px ${C.orangeGlow}` }}>
+        <Confete />
+        {/* brilho central */}
+        <div style={{ position: "absolute", left: "50%", top: "10%", width: 280, height: 220,
+          transform: "translateX(-50%)", background: `radial-gradient(circle, ${C.orangeGlow} 0%, transparent 70%)`, pointerEvents: "none" }} />
+        <div style={{ position: "relative" }}>
+          <div style={{ width: 84, height: 84, borderRadius: "50%", margin: "0 auto 18px",
+            background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: `0 10px 30px ${C.orangeGlow}`, animation: "pop .5s ease" }}>
+            <PartyPopper size={42} color="#fff" strokeWidth={2.2} />
+          </div>
+          <h1 style={{ fontSize: 25, fontWeight: 800, color: C.white, margin: "0 0 8px", letterSpacing: "-0.02em" }}>
+            Reconhecimento enviado! 🎉
+          </h1>
+          <p style={{ fontSize: 15, color: C.textMute, lineHeight: 1.55, margin: "0 0 22px" }}>
+            Você reconheceu <strong style={{ color: C.white }}>{alvo.name}</strong> em{" "}
+            <span style={{ color: cat.color, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4, verticalAlign: "middle" }}>
+              <Icon size={15} strokeWidth={2.5} /> {cat.label}
+            </span>.
+            <br />{isPublic ? "Já está no mural pra todo mundo ver e curtir." : "A mensagem foi enviada de forma privada."}
+          </p>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "10px 18px",
+            borderRadius: 999, background: "rgba(255,255,255,0.04)", border: `1px solid ${C.stroke}`, marginBottom: 26 }}>
+            <Avatar p={alvo} size={32} />
+            <span style={{ fontSize: 14, color: C.text, fontWeight: 600 }}>{alvo.name} vai adorar! 🧡</span>
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => irPara(isPublic ? "home" : "mensagens")} className="lift" style={{ ...btnPrimary }}>
+              <Home size={16} strokeWidth={2.5} /> {isPublic ? "Ver no mural" : "Ver mensagens"}
+            </button>
+            <button onClick={reiniciar} className="lift" style={{ ...btnGhost }}>
+              <Send size={15} strokeWidth={2.5} /> Reconhecer outra pessoa
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -811,10 +990,27 @@ function Ranking({ ranking, openProfile }) {
         display: "flex", alignItems: "center", gap: 10 }}>
         <Trophy size={24} color={C.orange} strokeWidth={2.4} /> Ranking de junho
       </h1>
-      <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 28px" }}>
+      <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 28px", display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         Pontuação = peso da categoria + curtidas no mural (0,2 cada). Zera todo dia 1º.
+        <Ajuda texto="Cada reconhecimento vale os pontos da categoria escolhida (Colaboração 1 · Entrega 2 · Inovação e Acima & Além 3). Cada curtida no mural soma 0,2. No dia 1º de cada mês o ranking zera e o 1º lugar vai pro Hall da Fama." />
       </p>
 
+      {ranking.length === 0 ? (
+        // Estado vazio bonito
+        <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 20,
+          border: `1px dashed ${C.strokeHi}`, padding: "56px 40px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", left: "50%", top: "-20%", width: 320, height: 240,
+            transform: "translateX(-50%)", background: `radial-gradient(circle, ${C.orangeGlow} 0%, transparent 70%)`, pointerEvents: "none" }} />
+          <div style={{ position: "relative" }}>
+            <Trophy size={48} color={C.orange} strokeWidth={1.8} style={{ marginBottom: 16, opacity: 0.9 }} />
+            <h2 style={{ fontSize: 19, fontWeight: 800, color: C.white, margin: "0 0 8px" }}>O ranking está esperando o primeiro herói</h2>
+            <p style={{ fontSize: 14.5, color: C.textMute, lineHeight: 1.5, maxWidth: 380, margin: "0 auto" }}>
+              Ainda não há reconhecimentos neste mês. Seja a primeira pessoa a reconhecer alguém e inaugure o pódio!
+            </p>
+          </div>
+        </div>
+      ) : (
+      <>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 18, marginBottom: 32 }}>
         {order.map((idx) => {
           const row = podium[idx]; if (!row) return null;
@@ -860,6 +1056,8 @@ function Ranking({ ranking, openProfile }) {
             </button>
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );
