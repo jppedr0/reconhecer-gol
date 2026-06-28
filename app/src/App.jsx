@@ -171,6 +171,14 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [cats, setCats] = useState(CATEGORIES);
   const [hall, setHall] = useState(HALL);
+  // solicitações de acesso (pendentes) e e-mails já aprovados
+  const [solicitacoes, setSolicitacoes] = useState([
+    { id: 1, nome: "João Pereira", email: "joao.pereira@voegol.com.br", quando: "há 2 dias" },
+    { id: 2, nome: "Ana Lima", email: "ana.lima@voegol.com.br", quando: "ontem" },
+  ]);
+  const [aprovados, setAprovados] = useState(["marina.alves@voegol.com.br", "rafael.souza@voegol.com.br"]);
+  // notificações para o usuário (quem te reconheceu)
+  const [notifsLidas, setNotifsLidas] = useState(false);
 
   const eu = personById(ME, people);
   const souAdmin = eu?.admin === true;
@@ -190,6 +198,36 @@ export default function App() {
   function saveBio(id, bio) {
     setPeople((ps) => ps.map((p) => p.id === id ? { ...p, bio } : p));
     notify("Bio atualizada!", 2200);
+  }
+  // ---- Acesso (solicitar / aprovar) ----
+  function solicitarAcesso(email, nome) {
+    setSolicitacoes((s) => [{ id: Date.now(), nome: nome || email.split("@")[0], email, quando: "agora" }, ...s]);
+  }
+  function aprovarSolicitacao(id) {
+    const s = solicitacoes.find((x) => x.id === id);
+    if (!s) return;
+    setAprovados((a) => [...a, s.email]);
+    setSolicitacoes((ss) => ss.filter((x) => x.id !== id));
+    notify(`${s.nome} aprovado! Já pode acessar.`);
+  }
+  function recusarSolicitacao(id) {
+    setSolicitacoes((ss) => ss.filter((x) => x.id !== id));
+    notify("Solicitação recusada.");
+  }
+  // ---- Gerenciar pessoas ----
+  function addPessoa(nome, role, area) {
+    const initials = nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+    setPeople((ps) => [...ps, { id: Date.now(), name: nome, role: role || "Colaborador(a)", area: area || "Inteligência", initials, bio: "" }]);
+    notify(`${nome} adicionado(a) ao time!`);
+  }
+  function removerPessoa(id) {
+    if (id === ME) { notify("Você não pode remover a si mesmo."); return; }
+    setPeople((ps) => ps.filter((p) => p.id !== id));
+    setRecs((rs) => rs.filter((r) => r.toId !== id && r.fromId !== id));
+    notify("Pessoa removida.");
+  }
+  function toggleAdmin(id) {
+    setPeople((ps) => ps.map((p) => p.id === id ? { ...p, admin: !p.admin } : p));
   }
   // ---- Funções do Admin ----
   function removerRec(id) {
@@ -232,21 +270,22 @@ export default function App() {
 
   // Tela de login aparece antes de tudo
   if (!logado) {
-    return <Login onEntrar={() => setLogado(true)} />;
+    return <Login onEntrar={() => setLogado(true)} aprovados={aprovados} solicitarAcesso={solicitarAcesso} />;
   }
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif",
       minHeight: "100vh", color: C.text, overflowX: "hidden",
       background: `
-        radial-gradient(1200px 600px at 80% -5%, rgba(255,112,32,0.16) 0%, transparent 55%),
-        radial-gradient(900px 500px at 0% 100%, rgba(255,112,32,0.08) 0%, transparent 50%),
+        radial-gradient(1200px 600px at 80% -5%, rgba(255,112,32,0.18) 0%, transparent 55%),
+        radial-gradient(1000px 500px at 0% 30%, rgba(255,112,32,0.10) 0%, transparent 50%),
+        radial-gradient(800px 600px at 100% 100%, rgba(219,80,20,0.10) 0%, transparent 55%),
         linear-gradient(180deg, ${C.bg900} 0%, ${C.black} 100%)
       `,
       backgroundAttachment: "fixed", position: "relative" }}>
-      {/* Textura de elos GOL ao fundo (bem sutil) */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", opacity: 0.05,
-        backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "600px", backgroundRepeat: "repeat",
+      {/* Textura de elos GOL ao fundo */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", opacity: 0.07,
+        backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "560px", backgroundRepeat: "repeat",
         mixBlendMode: "screen" }} />
       <div style={{ position: "relative", zIndex: 1 }}>
       <style>{`
@@ -298,7 +337,8 @@ export default function App() {
               );
             })}
           </nav>
-          <button onClick={() => openProfile(ME)} className="lift" style={{ marginLeft: 6 }} title="Meu perfil">
+          <Sininho recs={recs} people={people} openProfile={openProfile} />
+          <button onClick={() => openProfile(ME)} className="lift" style={{ marginLeft: 2 }} title="Meu perfil">
             <Avatar p={personById(ME, people)} size={38} />
           </button>
         </div>
@@ -314,7 +354,9 @@ export default function App() {
         {tab === "perfil" && <Perfil id={profileId} people={people} recs={recs} ranking={ranking}
           liked={liked} toggleLike={toggleLike} goReconhecer={() => setTab("reconhecer")} saveBio={saveBio} />}
         {tab === "admin" && souAdmin && <Admin recs={recs} people={people} cats={cats} ranking={ranking}
-          removerRec={removerRec} mudarPeso={mudarPeso} fecharMes={() => fecharMes(ranking)} />}
+          removerRec={removerRec} mudarPeso={mudarPeso} fecharMes={() => fecharMes(ranking)}
+          solicitacoes={solicitacoes} aprovarSolicitacao={aprovarSolicitacao} recusarSolicitacao={recusarSolicitacao}
+          addPessoa={addPessoa} removerPessoa={removerPessoa} toggleAdmin={toggleAdmin} openProfile={openProfile} />}
       </main>
 
       </div>
@@ -332,13 +374,103 @@ export default function App() {
 }
 
 // ============================================================
+//  SININHO DE NOTIFICAÇÕES
+// ============================================================
+function Sininho({ recs, people, openProfile }) {
+  const [aberto, setAberto] = useState(false);
+  // notificações = reconhecimentos que EU recebi
+  const minhas = recs.filter((r) => r.toId === ME).sort((a, b) => a.days - b.days);
+  const naoLidas = minhas.filter((r) => r.days <= 1).length;
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setAberto((a) => !a)} className="lift" title="Notificações" style={{
+        position: "relative", width: 40, height: 40, borderRadius: 11, marginLeft: 6,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: aberto ? `${C.orange}1F` : "rgba(255,255,255,0.04)",
+        border: `1px solid ${aberto ? C.orange + "55" : C.stroke}` }}>
+        <Bell size={18} color={aberto ? C.orange : C.textMute} strokeWidth={2.3} />
+        {naoLidas > 0 && (
+          <span style={{ position: "absolute", top: 6, right: 6, minWidth: 16, height: 16,
+            background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, borderRadius: 999,
+            fontSize: 10, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center",
+            justifyContent: "center", border: `2px solid ${C.bg900}`, padding: "0 3px" }}>{naoLidas}</span>
+        )}
+      </button>
+
+      {aberto && (
+        <>
+          <div onClick={() => setAberto(false)} style={{ position: "fixed", inset: 0, zIndex: 49 }} />
+          <div className="fade" style={{ position: "absolute", right: 0, top: 50, width: 340, zIndex: 50,
+            background: `linear-gradient(180deg, ${C.cardHi}, ${C.card})`, borderRadius: 16,
+            border: `1px solid ${C.strokeHi}`, boxShadow: "0 20px 60px rgba(0,0,0,0.6)", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.stroke}`,
+              display: "flex", alignItems: "center", gap: 8 }}>
+              <Bell size={16} color={C.orange} strokeWidth={2.5} />
+              <span style={{ fontWeight: 750, fontSize: 14.5, color: C.white }}>Notificações</span>
+            </div>
+            {minhas.length === 0 ? (
+              <div style={{ padding: "28px 16px", textAlign: "center", color: C.textMute, fontSize: 13.5 }}>
+                <PartyPopper size={26} color={C.textDim} style={{ marginBottom: 8 }} /><br />
+                Nenhum reconhecimento ainda. Continue brilhando! ✨
+              </div>
+            ) : (
+              <div style={{ maxHeight: 360, overflowY: "auto" }}>
+                {minhas.map((r) => {
+                  const from = personById(r.fromId, people);
+                  const cat = catById(r.cat);
+                  return (
+                    <button key={r.id} onClick={() => { openProfile(ME); setAberto(false); }} className="lift" style={{
+                      display: "flex", alignItems: "flex-start", gap: 11, width: "100%", padding: "12px 16px",
+                      borderBottom: `1px solid ${C.stroke}`, textAlign: "left" }}>
+                      <div style={{ position: "relative", flexShrink: 0 }}>
+                        <Avatar p={from} size={36} />
+                        <span style={{ position: "absolute", bottom: -3, right: -3, width: 18, height: 18,
+                          borderRadius: "50%", background: cat.color, display: "flex", alignItems: "center",
+                          justifyContent: "center", border: `2px solid ${C.card}` }}>
+                          <Heart size={9} color="#fff" fill="#fff" />
+                        </span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.4 }}>
+                          <strong style={{ color: C.white }}>{from.name}</strong> te reconheceu em <strong style={{ color: cat.color }}>{cat.label}</strong>
+                        </div>
+                        <div style={{ fontSize: 11.5, color: C.textDim, marginTop: 2 }}>{timeAgo(r.days)}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 //  MURAL
 // ============================================================
 function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconhecer }) {
   const [heroErro, setHeroErro] = useState(false);
   const [tripErro, setTripErro] = useState(false);
-  const publicRecs = recs.filter((r) => r.public);
+  const [busca, setBusca] = useState("");
+  const [filtroCat, setFiltroCat] = useState(null);
   const leader = ranking[0];
+
+  const publicRecs = recs.filter((r) => r.public).filter((r) => {
+    if (filtroCat && r.cat !== filtroCat) return false;
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      const from = personById(r.fromId, people);
+      const to = personById(r.toId, people);
+      return r.msg.toLowerCase().includes(q)
+        || from?.name.toLowerCase().includes(q)
+        || to?.name.toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   return (
     <div className="fade">
@@ -411,12 +543,57 @@ function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconh
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <h2 style={{ fontSize: 17, fontWeight: 750, margin: 0, color: C.white }}>Mural de reconhecimentos</h2>
-            <span style={{ fontSize: 13, color: C.textMute, fontWeight: 600 }}>{publicRecs.length} públicos</span>
+            <span style={{ fontSize: 13, color: C.textMute, fontWeight: 600 }}>{publicRecs.length} {publicRecs.length === 1 ? "resultado" : "públicos"}</span>
           </div>
+
+          {/* Busca + filtros */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ position: "relative", marginBottom: 10 }}>
+              <Search size={16} color={C.textDim} style={{ position: "absolute", left: 13, top: 13 }} />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome ou texto do reconhecimento..."
+                style={{ ...inp, paddingLeft: 38, paddingRight: busca ? 38 : 14 }} />
+              {busca && (
+                <button onClick={() => setBusca("")} style={{ position: "absolute", right: 10, top: 10,
+                  color: C.textMute, display: "flex" }}><X size={16} /></button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => setFiltroCat(null)} className="lift" style={{
+                fontSize: 12.5, fontWeight: 700, padding: "6px 13px", borderRadius: 999,
+                border: `1px solid ${!filtroCat ? C.orange : C.stroke}`,
+                background: !filtroCat ? `${C.orange}1F` : "rgba(255,255,255,0.02)",
+                color: !filtroCat ? C.orange : C.textMute }}>
+                Todas
+              </button>
+              {CATEGORIES.map((c) => {
+                const Icon = c.icon; const on = filtroCat === c.id;
+                return (
+                  <button key={c.id} onClick={() => setFiltroCat(on ? null : c.id)} className="lift" style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 12.5, fontWeight: 700, padding: "6px 13px", borderRadius: 999,
+                    border: `1px solid ${on ? c.color : C.stroke}`,
+                    background: on ? `${c.color}22` : "rgba(255,255,255,0.02)",
+                    color: on ? c.color : C.textMute }}>
+                    <Icon size={13} strokeWidth={2.5} /> {c.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {publicRecs.map((r) => (
-              <RecCard key={r.id} rec={r} people={people} liked={liked[r.id]} toggleLike={toggleLike} openProfile={openProfile} />
-            ))}
+            {publicRecs.length === 0 ? (
+              <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 16,
+                border: `1px dashed ${C.strokeHi}`, padding: 36, textAlign: "center", color: C.textMute, fontSize: 14 }}>
+                <Search size={28} color={C.textDim} style={{ marginBottom: 10 }} /><br />
+                Nenhum reconhecimento encontrado com esse filtro.
+              </div>
+            ) : (
+              publicRecs.map((r) => (
+                <RecCard key={r.id} rec={r} people={people} liked={liked[r.id]} toggleLike={toggleLike} openProfile={openProfile} />
+              ))
+            )}
           </div>
         </div>
 
@@ -921,10 +1098,36 @@ function Stat({ n, label, hi }) {
 // ============================================================
 //  LOGIN (visual — não autentica de verdade ainda)
 // ============================================================
-function Login({ onEntrar }) {
+function Login({ onEntrar, aprovados, solicitarAcesso }) {
   const [heroErro, setHeroErro] = useState(false);
   const [eloErro, setEloErro] = useState(false);
   const [cabecaErro, setCabecaErro] = useState(false);
+  const [email, setEmail] = useState("");
+  const [nome, setNome] = useState("");
+  const [modo, setModo] = useState("entrar"); // entrar | solicitar
+  const [erro, setErro] = useState("");
+  const [enviado, setEnviado] = useState(false);
+
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  function tentarEntrar() {
+    setErro("");
+    if (!emailValido) { setErro("Digite um e-mail válido."); return; }
+    if (aprovados.includes(email.trim().toLowerCase())) {
+      onEntrar();
+    } else {
+      setErro("Este e-mail ainda não tem acesso. Solicite abaixo.");
+      setModo("solicitar");
+    }
+  }
+  function enviarSolicitacao() {
+    setErro("");
+    if (!emailValido) { setErro("Digite um e-mail válido."); return; }
+    if (!nome.trim()) { setErro("Digite seu nome."); return; }
+    solicitarAcesso(email.trim().toLowerCase(), nome.trim());
+    setEnviado(true);
+  }
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", position: "relative", overflow: "hidden",
       fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif", background: C.black }}>
@@ -933,6 +1136,9 @@ function Login({ onEntrar }) {
         * { box-sizing: border-box; }
         html, body, #root { margin:0; padding:0; background:${C.black}; }
         button { font-family: inherit; cursor: pointer; border: none; }
+        input { font-family: inherit; }
+        input::placeholder { color: ${C.textDim}; }
+        input:focus { outline: none; border-color: ${C.orange} !important; }
         .lift { transition: transform .15s ease, box-shadow .15s ease; }
         .lift:hover { transform: translateY(-2px); }
         .fade { animation: fade .5s ease; }
@@ -945,13 +1151,10 @@ function Login({ onEntrar }) {
         <img src={ASSETS.aviao} alt="" onError={() => setHeroErro(true)}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }} />
       )}
-      {/* Overlay escuro com brilho laranja */}
       <div style={{ position: "absolute", inset: 0,
         background: `radial-gradient(900px 600px at 75% 30%, rgba(255,112,32,0.25) 0%, transparent 60%), linear-gradient(120deg, ${C.black}F2 0%, ${C.black}E8 50%, rgba(219,80,20,0.25) 130%)` }} />
-      {/* Grafismo de elos sutil */}
       <div style={{ position: "absolute", inset: 0, opacity: 0.06, pointerEvents: "none",
         backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "500px", backgroundRepeat: "repeat", mixBlendMode: "screen" }} />
-      {/* elo grande decorativo flutuando */}
       {!eloErro && (
         <img src={ASSETS.elo} alt="" onError={() => setEloErro(true)}
           style={{ position: "absolute", right: "-6%", bottom: "-10%", width: 420, opacity: 0.12,
@@ -961,43 +1164,119 @@ function Login({ onEntrar }) {
       {/* Card central de login */}
       <div className="fade" style={{ position: "relative", margin: "auto", width: "100%", maxWidth: 440, padding: "0 22px" }}>
         <div style={{ background: `linear-gradient(180deg, ${C.card}EE, ${C.bg800}EE)`, backdropFilter: "blur(16px)",
-          borderRadius: 24, border: `1px solid ${C.strokeHi}`, padding: "40px 36px",
+          borderRadius: 24, border: `1px solid ${C.strokeHi}`, padding: "38px 34px",
           boxShadow: `0 30px 80px rgba(0,0,0,0.6), 0 0 40px ${C.orangeGlow}` }}>
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 8 }}>
-            {!eloErro && <img src={ASSETS.elo} alt="GOL" style={{ height: 40 }} onError={() => setEloErro(true)} />}
-            {!cabecaErro && <img src={ASSETS.cabeca} alt="" style={{ height: 38, filter: "drop-shadow(0 0 6px rgba(255,112,32,0.4))" }} onError={() => setCabecaErro(true)} />}
+            {!eloErro && <img src={ASSETS.elo} alt="GOL" style={{ height: 38 }} onError={() => setEloErro(true)} />}
+            {!cabecaErro && <img src={ASSETS.cabeca} alt="" style={{ height: 36, filter: "drop-shadow(0 0 6px rgba(255,112,32,0.4))" }} onError={() => setCabecaErro(true)} />}
           </div>
-          <h1 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, color: C.white, margin: "10px 0 2px", letterSpacing: "-0.02em" }}>
+          <h1 style={{ textAlign: "center", fontSize: 27, fontWeight: 800, color: C.white, margin: "8px 0 2px", letterSpacing: "-0.02em" }}>
             Reconhecer
           </h1>
-          <p style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: C.orange, letterSpacing: "0.16em", margin: "0 0 6px" }}>
+          <p style={{ textAlign: "center", fontSize: 11.5, fontWeight: 700, color: C.orange, letterSpacing: "0.16em", margin: "0 0 18px" }}>
             INTELIGÊNCIA · COMPRAS
           </p>
-          <p style={{ textAlign: "center", fontSize: 14, color: C.textMute, lineHeight: 1.5, margin: "16px 0 28px" }}>
-            Um gesto simples vira destaque. Entre para reconhecer quem faz a diferença no time.
-          </p>
 
-          <button onClick={onEntrar} className="lift" style={{
-            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 11,
-            background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, color: C.white,
-            fontWeight: 700, fontSize: 15.5, padding: "14px", borderRadius: 12,
-            boxShadow: `0 10px 30px ${C.orangeGlow}` }}>
-            <MicrosoftIcon /> Entrar com conta Microsoft
-          </button>
+          {enviado ? (
+            // ---- Confirmação de solicitação enviada ----
+            <div style={{ textAlign: "center", padding: "8px 0" }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", margin: "0 auto 14px",
+                background: `${C.orange}22`, border: `1px solid ${C.orange}55`,
+                display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Check size={28} color={C.orange} strokeWidth={2.6} />
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 17, color: C.white, marginBottom: 8 }}>Solicitação enviada!</div>
+              <p style={{ fontSize: 13.5, color: C.textMute, lineHeight: 1.5, margin: "0 0 20px" }}>
+                A Inteligência vai revisar seu pedido. Assim que aprovado, você entra direto com <strong style={{ color: C.text }}>{email}</strong>.
+              </p>
+              <button onClick={() => { setEnviado(false); setModo("entrar"); setEmail(""); setNome(""); }}
+                className="lift" style={{ ...btnGhost, width: "100%", justifyContent: "center" }}>
+                Voltar
+              </button>
+            </div>
+          ) : (
+            <>
+              <p style={{ textAlign: "center", fontSize: 13.5, color: C.textMute, lineHeight: 1.5, margin: "0 0 20px" }}>
+                {modo === "entrar"
+                  ? "Entre com seu e-mail corporativo para reconhecer quem faz a diferença."
+                  : "Primeiro acesso? Solicite sua entrada e a Inteligência aprova."}
+              </p>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 22, justifyContent: "center" }}>
+              {/* Campo nome (só no modo solicitar) */}
+              {modo === "solicitar" && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ position: "relative" }}>
+                    <Users size={16} color={C.textDim} style={{ position: "absolute", left: 13, top: 14 }} />
+                    <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome completo"
+                      style={{ ...loginInp, paddingLeft: 38 }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Campo e-mail */}
+              <div style={{ position: "relative", marginBottom: erro ? 8 : 16 }}>
+                <Mail size={16} color={C.textDim} style={{ position: "absolute", left: 13, top: 14 }} />
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu.nome@voegol.com.br"
+                  type="email" style={{ ...loginInp, paddingLeft: 38 }}
+                  onKeyDown={(e) => { if (e.key === "Enter") (modo === "entrar" ? tentarEntrar() : enviarSolicitacao()); }} />
+              </div>
+
+              {erro && (
+                <div style={{ fontSize: 12.5, color: "#FF8A8A", margin: "0 0 14px", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Bell size={13} /> {erro}
+                </div>
+              )}
+
+              {modo === "entrar" ? (
+                <>
+                  <button onClick={tentarEntrar} className="lift" style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                    background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, color: C.white,
+                    fontWeight: 700, fontSize: 15, padding: "13px", borderRadius: 12,
+                    boxShadow: `0 10px 30px ${C.orangeGlow}` }}>
+                    <ArrowRight size={17} strokeWidth={2.6} /> Entrar
+                  </button>
+                  <button onClick={() => { setModo("solicitar"); setErro(""); }} style={{
+                    width: "100%", marginTop: 10, background: "transparent", color: C.textMute,
+                    fontWeight: 600, fontSize: 13, padding: "8px" }}>
+                    Primeiro acesso? <span style={{ color: C.orange, fontWeight: 700 }}>Solicitar acesso</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={enviarSolicitacao} className="lift" style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                    background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, color: C.white,
+                    fontWeight: 700, fontSize: 15, padding: "13px", borderRadius: 12,
+                    boxShadow: `0 10px 30px ${C.orangeGlow}` }}>
+                    <Send size={16} strokeWidth={2.6} /> Solicitar acesso
+                  </button>
+                  <button onClick={() => { setModo("entrar"); setErro(""); }} style={{
+                    width: "100%", marginTop: 10, background: "transparent", color: C.textMute,
+                    fontWeight: 600, fontSize: 13, padding: "8px" }}>
+                    Já tenho acesso? <span style={{ color: C.orange, fontWeight: 700 }}>Entrar</span>
+                  </button>
+                </>
+              )}
+            </>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20, justifyContent: "center" }}>
             <Lock size={13} color={C.textDim} />
-            <span style={{ fontSize: 12, color: C.textDim }}>Acesso exclusivo para colaboradores GOL</span>
+            <span style={{ fontSize: 11.5, color: C.textDim }}>Acesso exclusivo para colaboradores GOL</span>
           </div>
         </div>
-        <p style={{ textAlign: "center", fontSize: 11.5, color: C.textDim, marginTop: 20 }}>
+        <p style={{ textAlign: "center", fontSize: 11.5, color: C.textDim, marginTop: 18 }}>
           Inteligência · Compras · GOL Linhas Aéreas
         </p>
       </div>
     </div>
   );
 }
+
+const loginInp = { width: "100%", padding: "12px 14px", borderRadius: 11, border: `1.5px solid ${C.stroke}`,
+  fontSize: 14, color: C.text, background: "rgba(0,0,0,0.35)" };
 
 // Ícone Microsoft (4 quadradinhos)
 function MicrosoftIcon() {
@@ -1014,10 +1293,19 @@ function MicrosoftIcon() {
 // ============================================================
 //  ADMIN (painel restrito — só quem tem perfil admin)
 // ============================================================
-function Admin({ recs, people, cats, ranking, removerRec, mudarPeso, fecharMes }) {
+function Admin({ recs, people, cats, ranking, removerRec, mudarPeso, fecharMes,
+  solicitacoes, aprovarSolicitacao, recusarSolicitacao, addPessoa, removerPessoa, toggleAdmin, openProfile }) {
   const [confirmar, setConfirmar] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoRole, setNovoRole] = useState("");
   const publicRecs = recs.filter((r) => r.public);
   const campeao = ranking[0];
+
+  // Estatísticas
+  const totalLikes = recs.reduce((s, r) => s + r.likes, 0);
+  const porCategoria = cats.map((c) => ({ ...c, n: recs.filter((r) => r.cat === c.id).length }));
+  const maxCat = Math.max(1, ...porCategoria.map((c) => c.n));
+  const semReconhecimento = people.filter((p) => p.id !== ME && !recs.some((r) => r.toId === p.id));
 
   return (
     <div className="fade" style={{ maxWidth: 920, margin: "0 auto" }}>
@@ -1026,15 +1314,157 @@ function Admin({ recs, people, cats, ranking, removerRec, mudarPeso, fecharMes }
         <Shield size={24} color={C.orange} strokeWidth={2.4} /> Painel da Inteligência
       </h1>
       <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 26px" }}>
-        Área restrita. Aqui você gerencia o programa: fecha o mês, ajusta pontuações e modera o mural.
+        Área restrita. Gerencie cadastros, pessoas, pontuações e modere o mural.
       </p>
 
       {/* Cards de resumo */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
         <AdminStat icon={Send} label="Reconhecimentos" value={recs.length} />
-        <AdminStat icon={Users} label="Pessoas ativas" value={ranking.length} />
-        <AdminStat icon={Crown} label="Líder atual" value={campeao ? campeao.person.name.split(" ")[0] : "—"} />
+        <AdminStat icon={Users} label="Pessoas ativas" value={people.length} />
+        <AdminStat icon={Heart} label="Curtidas totais" value={totalLikes} />
+        <AdminStat icon={Bell} label="Cadastros pendentes" value={solicitacoes.length} destaque={solicitacoes.length > 0} />
       </div>
+
+      {/* Solicitações de cadastro */}
+      <AdminCard title="Solicitações de acesso" icon={BadgeCheck} badge={solicitacoes.length}>
+        <p style={{ color: C.textMute, fontSize: 14, margin: "0 0 16px" }}>
+          Pessoas que pediram acesso ao site. Aprove para liberar a entrada direta.
+        </p>
+        {solicitacoes.length === 0 ? (
+          <div style={{ color: C.textDim, fontSize: 14, fontStyle: "italic", display: "flex", alignItems: "center", gap: 8 }}>
+            <Check size={15} color={C.textDim} /> Nenhuma solicitação pendente.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {solicitacoes.map((s) => (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                background: "rgba(0,0,0,0.25)", borderRadius: 12, border: `1px solid ${C.stroke}` }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                  background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, color: "#fff",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>
+                  {s.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{s.nome}</div>
+                  <div style={{ fontSize: 12.5, color: C.textMute }}>{s.email} · {s.quando}</div>
+                </div>
+                <button onClick={() => aprovarSolicitacao(s.id)} className="lift" style={{
+                  display: "flex", alignItems: "center", gap: 6, color: "#fff", fontWeight: 700, fontSize: 13,
+                  background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`,
+                  padding: "8px 14px", borderRadius: 9, boxShadow: `0 4px 14px ${C.orangeGlow}` }}>
+                  <Check size={14} strokeWidth={2.6} /> Aprovar
+                </button>
+                <button onClick={() => recusarSolicitacao(s.id)} className="lift" title="Recusar" style={{
+                  display: "flex", alignItems: "center", color: C.textMute, fontWeight: 650, fontSize: 13,
+                  background: "rgba(255,255,255,0.05)", border: `1px solid ${C.stroke}`,
+                  padding: "8px 10px", borderRadius: 9 }}>
+                  <X size={15} strokeWidth={2.4} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </AdminCard>
+
+      {/* Estatísticas */}
+      <AdminCard title="Estatísticas do programa" icon={TrendingUp}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+          {/* Reconhecimentos por categoria */}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Por categoria</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {porCategoria.map((c) => {
+                const Icon = c.icon;
+                return (
+                  <div key={c.id}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: c.color, fontWeight: 700 }}>
+                        <Icon size={13} strokeWidth={2.5} /> {c.label}
+                      </span>
+                      <span style={{ fontSize: 12.5, color: C.textMute, fontWeight: 700 }}>{c.n}</span>
+                    </div>
+                    <div style={{ height: 7, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(c.n / maxCat) * 100}%`,
+                        background: `linear-gradient(90deg, ${c.color}, ${c.color}AA)`, borderRadius: 999, transition: "width .4s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Quem ainda não foi reconhecido */}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <Flame size={14} color={C.orange} /> Ainda sem reconhecimento
+            </div>
+            {semReconhecimento.length === 0 ? (
+              <div style={{ fontSize: 13, color: C.textDim, fontStyle: "italic" }}>Todo mundo já foi reconhecido! 🎉</div>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {semReconhecimento.map((p) => (
+                  <button key={p.id} onClick={() => openProfile(p.id)} className="lift" style={{
+                    display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(0,0,0,0.25)",
+                    border: `1px solid ${C.stroke}`, borderRadius: 999, padding: "5px 11px 5px 5px" }}>
+                    <Avatar p={p} size={24} />
+                    <span style={{ fontSize: 12.5, color: C.text, fontWeight: 600 }}>{p.name.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: 12, color: C.textDim, marginTop: 14, lineHeight: 1.5 }}>
+              Que tal incentivar reconhecimentos para essas pessoas? Ninguém deve ficar de fora.
+            </p>
+          </div>
+        </div>
+      </AdminCard>
+
+      {/* Gerenciar pessoas */}
+      <AdminCard title="Gerenciar pessoas" icon={Users}>
+        <p style={{ color: C.textMute, fontSize: 14, margin: "0 0 14px" }}>
+          Adicione, promova a admin ou remova pessoas do programa.
+        </p>
+        {/* Adicionar pessoa */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          <input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome da pessoa"
+            style={{ ...inp, flex: 2, minWidth: 140 }} />
+          <input value={novoRole} onChange={(e) => setNovoRole(e.target.value)} placeholder="Cargo (opcional)"
+            style={{ ...inp, flex: 2, minWidth: 140 }} />
+          <button onClick={() => { if (novoNome.trim()) { addPessoa(novoNome.trim(), novoRole.trim()); setNovoNome(""); setNovoRole(""); } }}
+            className="lift" style={{ ...btnPrimary, flexShrink: 0 }}>
+            <Users size={15} strokeWidth={2.5} /> Adicionar
+          </button>
+        </div>
+        {/* Lista de pessoas */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {people.map((p) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
+              background: "rgba(0,0,0,0.22)", borderRadius: 11, border: `1px solid ${C.stroke}` }}>
+              <Avatar p={p} size={34} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.white, display: "flex", alignItems: "center", gap: 7 }}>
+                  {p.name}
+                  {p.admin && <span style={{ fontSize: 10, fontWeight: 700, color: C.orange, background: `${C.orange}1F`,
+                    border: `1px solid ${C.orange}44`, padding: "1px 7px", borderRadius: 999, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    <Shield size={9} strokeWidth={2.6} /> ADMIN</span>}
+                </div>
+                <div style={{ fontSize: 12, color: C.textMute }}>{p.role} · {p.area}</div>
+              </div>
+              <button onClick={() => toggleAdmin(p.id)} className="lift" title={p.admin ? "Remover admin" : "Tornar admin"} style={{
+                display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 650,
+                color: p.admin ? C.orange : C.textMute, background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${C.stroke}`, padding: "6px 10px", borderRadius: 8 }}>
+                <Shield size={12} strokeWidth={2.4} /> {p.admin ? "Admin" : "Tornar admin"}
+              </button>
+              <button onClick={() => removerPessoa(p.id)} className="lift" title="Remover" style={{
+                display: "flex", alignItems: "center", color: "#FF6B6B",
+                background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)",
+                padding: "6px 9px", borderRadius: 8 }}>
+                <Trash2 size={13} strokeWidth={2.4} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </AdminCard>
 
       {/* Fechar o mês */}
       <AdminCard title="Fechar o mês" icon={CalendarCheck}>
@@ -1121,24 +1551,31 @@ function Admin({ recs, people, cats, ranking, removerRec, mudarPeso, fecharMes }
   );
 }
 
-function AdminStat({ icon: Icon, label, value }) {
+function AdminStat({ icon: Icon, label, value, destaque }) {
   return (
-    <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 14,
-      border: `1px solid ${C.stroke}`, padding: "16px 18px" }}>
+    <div style={{ background: destaque ? `linear-gradient(180deg, ${C.orange}22, ${C.bg800})` : `linear-gradient(180deg, ${C.card}, ${C.bg800})`,
+      borderRadius: 14, border: `1px solid ${destaque ? C.orange + "55" : C.stroke}`, padding: "16px 18px" }}>
       <Icon size={18} color={C.orange} strokeWidth={2.4} />
       <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginTop: 8 }}>{value}</div>
-      <div style={{ fontSize: 12.5, color: C.textMute, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 12, color: C.textMute, fontWeight: 600 }}>{label}</div>
     </div>
   );
 }
 
-function AdminCard({ title, icon: Icon, children }) {
+function AdminCard({ title, icon: Icon, children, badge }) {
   return (
     <div style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`, borderRadius: 18,
       border: `1px solid ${C.stroke}`, padding: 22, marginBottom: 18, boxShadow: "0 8px 28px rgba(0,0,0,0.25)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
         <Icon size={18} color={C.orange} strokeWidth={2.5} />
         <h3 style={{ fontSize: 16, fontWeight: 750, margin: 0, color: C.white }}>{title}</h3>
+        {badge > 0 && (
+          <span style={{ marginLeft: 2, fontSize: 11, fontWeight: 800, color: "#fff",
+            background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, minWidth: 20, height: 20,
+            borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 6px" }}>
+            {badge}
+          </span>
+        )}
       </div>
       {children}
     </div>
