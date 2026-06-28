@@ -65,7 +65,7 @@ const PEOPLE = [
     bio: "Power BI é comigo mesmo." },
   { id: 5, name: "Letícia Rocha", role: "Cientista de Dados", area: "Inteligência", initials: "LR", bio: "" },
   { id: 6, name: "Bruno Carvalho", role: "Analista de Processos", area: "Compras", initials: "BC", bio: "" },
-  { id: 7, name: "Você", role: "Inteligência", area: "Compras", initials: "EU", bio: "", admin: true },
+  { id: 7, name: "Você", role: "Jovem Aprendiz", area: "Inteligência de Suprimentos", initials: "EU", bio: "", admin: true },
 ];
 
 const seedRecs = [
@@ -176,7 +176,7 @@ export default function App() {
     { id: 1, nome: "João Pereira", email: "joao.pereira@voegol.com.br", quando: "há 2 dias" },
     { id: 2, nome: "Ana Lima", email: "ana.lima@voegol.com.br", quando: "ontem" },
   ]);
-  const [aprovados, setAprovados] = useState(["marina.alves@voegol.com.br", "rafael.souza@voegol.com.br"]);
+  const [aprovados, setAprovados] = useState(["jpomatos@voegol.com.br", "test@voegol.com.br"]);
   // notificações para o usuário (quem te reconheceu)
   const [notifsLidas, setNotifsLidas] = useState(false);
 
