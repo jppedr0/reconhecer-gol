@@ -1351,7 +1351,7 @@ function Login({ onEntrar, aprovados, solicitarAcesso }) {
       )}
       <div style={{ position: "absolute", inset: 0,
         background: `radial-gradient(900px 600px at 75% 30%, rgba(255,112,32,0.25) 0%, transparent 60%), linear-gradient(120deg, ${C.black}F2 0%, ${C.black}E8 50%, rgba(219,80,20,0.25) 130%)` }} />
-      <div style={{ position: "absolute", inset: 0, opacity: 0.06, pointerEvents: "none",
+      <div style={{ position: "absolute", inset: 0, opacity: 0.08, pointerEvents: "none",
         backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "500px", backgroundRepeat: "repeat", mixBlendMode: "screen" }} />
       {!eloErro && (
         <img src={ASSETS.elo} alt="" onError={() => setEloErro(true)}
@@ -1466,7 +1466,7 @@ function Login({ onEntrar, aprovados, solicitarAcesso }) {
           </div>
         </div>
         <p style={{ textAlign: "center", fontSize: 11.5, color: C.textDim, marginTop: 18 }}>
-          Inteligência · Compras · GOL Linhas Aéreas
+          Inteligência de Suprimentos · GOL Linhas Aéreas
         </p>
       </div>
     </div>
