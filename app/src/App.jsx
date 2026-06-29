@@ -65,7 +65,7 @@ const PEOPLE = [
     bio: "Power BI é comigo mesmo." },
   { id: 5, name: "Letícia Rocha", role: "Cientista de Dados", area: "Inteligência", initials: "LR", bio: "" },
   { id: 6, name: "Bruno Carvalho", role: "Analista de Processos", area: "Compras", initials: "BC", bio: "" },
-  { id: 7, name: "Você", role: "Inteligência", area: "Compras", initials: "EU", bio: "", admin: true },
+  { id: 7, name: "Você", role: "Jovem Aprendiz", area: "Inteligência de Suprimentos", initials: "EU", bio: "", admin: true },
 ];
 
 const seedRecs = [
@@ -94,6 +94,52 @@ const catById = (id) => CATEGORIES.find((c) => c.id === id);
 const personById = (id, people) => (people || PEOPLE).find((p) => p.id === id);
 function timeAgo(days) { if (days <= 0) return "hoje"; if (days === 1) return "ontem"; return `há ${days} dias`; }
 function scoreOf(rec) { return catById(rec.cat).weight + rec.likes * 0.2; }
+
+// ---------- Sistema de badges / conquistas ----------
+const BADGES = [
+  { id: "primeiro", icon: Star, cor: "#3BA7C4", nome: "Primeiro reconhecimento", desc: "Recebeu seu primeiro reconhecimento",
+    teste: (s) => s.recebidos >= 1 },
+  { id: "querido", icon: Heart, cor: "#FF6B9D", nome: "Queridinho da equipe", desc: "Recebeu 3 ou mais reconhecimentos",
+    teste: (s) => s.recebidos >= 3 },
+  { id: "popular", icon: Flame, cor: "#FF7020", nome: "Em alta", desc: "Recebeu de 3 pessoas diferentes",
+    teste: (s) => s.pessoasDiferentes >= 3 },
+  { id: "curtido", icon: TrendingUp, cor: "#FFB414", nome: "Aplaudido", desc: "Acumulou 20+ curtidas nos reconhecimentos",
+    teste: (s) => s.curtidasRecebidas >= 20 },
+  { id: "colaborador", icon: Users, cor: "#3BA7C4", nome: "Colaborador nato", desc: "Reconhecido em Colaboração",
+    teste: (s) => s.cats.has("colab") },
+  { id: "inovador", icon: Sparkles, cor: "#B566D9", nome: "Inovador", desc: "Reconhecido em Inovação",
+    teste: (s) => s.cats.has("inova") },
+  { id: "alemDoComum", icon: Crown, cor: "#FFB414", nome: "Acima & Além", desc: "Reconhecido em Acima & Além",
+    teste: (s) => s.cats.has("alem") },
+  { id: "generoso", icon: Send, cor: "#FF7020", nome: "Generoso", desc: "Enviou 3 ou mais reconhecimentos",
+    teste: (s) => s.enviados >= 3 },
+];
+
+function statsDe(id, recs) {
+  const recebidosArr = recs.filter((r) => r.toId === id);
+  const enviadosArr = recs.filter((r) => r.fromId === id);
+  return {
+    recebidos: recebidosArr.length,
+    enviados: enviadosArr.length,
+    curtidasRecebidas: recebidosArr.reduce((s, r) => s + r.likes, 0),
+    pessoasDiferentes: new Set(recebidosArr.map((r) => r.fromId)).size,
+    cats: new Set(recebidosArr.map((r) => r.cat)),
+  };
+}
+function badgesDe(id, recs) {
+  const s = statsDe(id, recs);
+  return BADGES.map((b) => ({ ...b, conquistada: b.teste(s) }));
+}
+
+// ---------- Reações (no lugar de só curtir) ----------
+const REACOES = [
+  { id: "heart", emoji: "❤️", label: "Amei" },
+  { id: "clap", emoji: "👏", label: "Aplausos" },
+  { id: "rocket", emoji: "🚀", label: "Arrasou" },
+  { id: "fire", emoji: "🔥", label: "Demais" },
+  { id: "idea", emoji: "💡", label: "Inspirador" },
+  { id: "party", emoji: "🎉", label: "Festa" },
+];
 
 // ---------- Avatar ----------
 function Avatar({ p, size = 40, ring }) {
@@ -203,6 +249,31 @@ export default function App() {
   const [aprovados, setAprovados] = useState(["jpomatos@voegol.com.br", "teste@voegol.com.br"]);
   // notificações para o usuário (quem te reconheceu)
   const [notifsLidas, setNotifsLidas] = useState(false);
+  // reações: { [recId]: { [reacaoId]: count } } e qual EU dei: { [recId]: reacaoId }
+  const [reacoes, setReacoes] = useState({});
+  const [minhaReacao, setMinhaReacao] = useState({});
+  // favoritos: Set de recIds
+  const [favoritos, setFavoritos] = useState({});
+
+  function reagir(recId, reacaoId) {
+    setReacoes((prev) => {
+      const atual = { ...(prev[recId] || {}) };
+      const anterior = minhaReacao[recId];
+      if (anterior === reacaoId) {
+        // tirar reação
+        atual[reacaoId] = Math.max(0, (atual[reacaoId] || 1) - 1);
+      } else {
+        if (anterior) atual[anterior] = Math.max(0, (atual[anterior] || 1) - 1);
+        atual[reacaoId] = (atual[reacaoId] || 0) + 1;
+      }
+      return { ...prev, [recId]: atual };
+    });
+    setMinhaReacao((prev) => ({ ...prev, [recId]: prev[recId] === reacaoId ? null : reacaoId }));
+  }
+  function toggleFavorito(recId) {
+    setFavoritos((prev) => ({ ...prev, [recId]: !prev[recId] }));
+    notify(favoritos[recId] ? "Removido dos favoritos." : "Salvo nos favoritos! ⭐", 1800);
+  }
 
   const eu = personById(ME, people);
   const souAdmin = eu?.admin === true;
@@ -288,6 +359,7 @@ export default function App() {
     { id: "reconhecer", label: "Reconhecer", icon: Send },
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "hall", label: "Hall da Fama", icon: Award },
+    { id: "radar", label: "Radar", icon: Sparkles },
     { id: "mensagens", label: "Mensagens", icon: Mail },
     ...(souAdmin ? [{ id: "admin", label: "Admin", icon: Shield }] : []),
   ];
@@ -334,7 +406,15 @@ export default function App() {
         @keyframes subir { from {opacity:0; transform:translateY(16px);} to {opacity:1; transform:none;} }
         @keyframes pop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
         @keyframes confeteCai { 0%{transform:translateY(-20px) rotate(0);opacity:1} 100%{transform:translateY(380px) rotate(540deg);opacity:0} }
-        @media (prefers-reduced-motion: reduce){ .fade,.lift,.cascata>*{animation:none;transition:none;opacity:1;} }
+        @keyframes flutuar { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes flutuar2 { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-16px) rotate(4deg)} }
+        @keyframes pulsarBrilho { 0%,100%{opacity:.5} 50%{opacity:.9} }
+        @keyframes girar { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+        @keyframes brilhoBadge { 0%,100%{box-shadow:0 0 0 rgba(255,180,20,0)} 50%{box-shadow:0 0 16px rgba(255,180,20,0.5)} }
+        .flutua { animation: flutuar 6s ease-in-out infinite; }
+        .flutua2 { animation: flutuar2 8s ease-in-out infinite; }
+        .pulsa { animation: pulsarBrilho 4s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce){ .fade,.lift,.cascata>*,.flutua,.flutua2,.pulsa{animation:none;transition:none;opacity:1;} }
         button:focus-visible { outline: 2px solid ${C.orange}; outline-offset: 2px; }
         input:focus, textarea:focus { outline: none; border-color: ${C.orange} !important; }
         input::placeholder, textarea::placeholder { color: ${C.textDim}; }
@@ -356,7 +436,7 @@ export default function App() {
             <CabecaIntel size={30} />
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1, alignItems: "flex-start" }}>
               <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: "-0.02em", color: C.white, display: "block" }}>Reconhecer</span>
-              <span style={{ fontSize: 10.5, color: C.orange, fontWeight: 700, letterSpacing: "0.14em", marginTop: 4, display: "block" }}>INTELIGÊNCIA DE SUPRIMENTOS</span>
+              <span style={{ fontSize: 10.5, color: C.orange, fontWeight: 700, letterSpacing: "0.14em", marginTop: 4, display: "block" }}>INTELIGÊNCIA · COMPRAS</span>
             </div>
           </div>
           <nav style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
@@ -381,14 +461,17 @@ export default function App() {
       </header>
 
       <main style={{ maxWidth: 1600, margin: "0 auto", padding: "26px 22px 60px" }}>
-        {tab === "home" && <Mural recs={recs} people={people} liked={liked} toggleLike={toggleLike}
-          ranking={ranking} openProfile={openProfile} goReconhecer={() => setTab("reconhecer")} />}
+        {tab === "home" && <Mural recs={recs} people={people} ranking={ranking} openProfile={openProfile}
+          goReconhecer={() => setTab("reconhecer")}
+          reacoes={reacoes} minhaReacao={minhaReacao} reagir={reagir} favoritos={favoritos} toggleFavorito={toggleFavorito} />}
         {tab === "reconhecer" && <Reconhecer people={people} onSend={addRec} irPara={irPara} />}
         {tab === "ranking" && <Ranking ranking={ranking} openProfile={openProfile} />}
         {tab === "hall" && <Hall hall={hall} />}
+        {tab === "radar" && <Radar recs={recs} people={people} openProfile={openProfile} />}
         {tab === "mensagens" && <Mensagens recs={recs} people={people} openProfile={openProfile} />}
         {tab === "perfil" && <Perfil id={profileId} people={people} recs={recs} ranking={ranking}
-          liked={liked} toggleLike={toggleLike} goReconhecer={() => setTab("reconhecer")} saveBio={saveBio} />}
+          goReconhecer={() => setTab("reconhecer")} saveBio={saveBio}
+          reacoes={reacoes} minhaReacao={minhaReacao} reagir={reagir} favoritos={favoritos} toggleFavorito={toggleFavorito} />}
         {tab === "admin" && souAdmin && <Admin recs={recs} people={people} cats={cats} ranking={ranking}
           removerRec={removerRec} mudarPeso={mudarPeso} fecharMes={() => fecharMes(ranking)}
           solicitacoes={solicitacoes} aprovarSolicitacao={aprovarSolicitacao} recusarSolicitacao={recusarSolicitacao}
@@ -527,9 +610,137 @@ function Sininho({ recs, people, openProfile }) {
 }
 
 // ============================================================
+//  DASHBOARD PESSOAL + RECONHECIMENTO EM NÚMEROS
+// ============================================================
+function DashboardPessoal({ recs, people, ranking }) {
+  const eu = personById(ME, people);
+  const meusStats = statsDe(ME, recs);
+  const minhaPos = ranking.findIndex((r) => r.person.id === ME) + 1;
+  const meusPontos = ranking.find((r) => r.person.id === ME)?.pts || 0;
+  // categoria top que recebi
+  const catsRecebidas = {};
+  recs.filter((r) => r.toId === ME).forEach((r) => { catsRecebidas[r.cat] = (catsRecebidas[r.cat] || 0) + 1; });
+  const topCatId = Object.entries(catsRecebidas).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const topCat = topCatId ? catById(topCatId) : null;
+
+  // Números do programa (todos)
+  const totalRecs = recs.length;
+  const pessoasReconhecidas = new Set(recs.map((r) => r.toId)).size;
+  const totalCurtidas = recs.reduce((s, r) => s + r.likes, 0);
+  const publicos = recs.filter((r) => r.public).length;
+  const pctParticipacao = people.length ? Math.round((pessoasReconhecidas / people.length) * 100) : 0;
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      {/* Saudação + meus números */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 16 }}>
+        {/* Card de boas-vindas pessoal */}
+        <div style={{ position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${C.card}, ${C.bg800})`,
+          borderRadius: 18, border: `1px solid ${C.stroke}`, padding: "22px 24px", boxShadow: "0 10px 36px rgba(0,0,0,0.3)" }}>
+          <div className="pulsa" style={{ position: "absolute", right: "-10%", top: "-30%", width: 220, height: 220,
+            background: `radial-gradient(circle, ${C.orangeGlow} 0%, transparent 65%)`, pointerEvents: "none" }} />
+          <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+            <Avatar p={eu} size={52} />
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.white, letterSpacing: "-0.01em" }}>
+                Olá, {eu.name.split(" ")[0]} 👋
+              </div>
+              <div style={{ fontSize: 13, color: C.textMute }}>Veja seu mês de reconhecimentos</div>
+            </div>
+          </div>
+          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            <MiniStat icon={Heart} cor="#FF6B9D" valor={meusStats.recebidos} label="recebidos" />
+            <MiniStat icon={Trophy} cor={C.gold} valor={meusPontos} label="pontos" />
+            <MiniStat icon={TrendingUp} cor={C.orange} valor={minhaPos > 0 ? `#${minhaPos}` : "—"} label="ranking" />
+            <MiniStat icon={topCat ? topCat.icon : Star} cor={topCat ? topCat.color : C.textMute}
+              valor={meusStats.curtidasRecebidas} label="curtidas" />
+          </div>
+          {topCat && (
+            <div style={{ position: "relative", marginTop: 14, fontSize: 12.5, color: C.textMute }}>
+              Sua categoria de destaque: <span style={{ color: topCat.color, fontWeight: 700 }}>{topCat.label}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Meta da equipe */}
+        <MetaEquipe totalRecs={totalRecs} />
+      </div>
+
+      {/* Reconhecimento em números (faixa) */}
+      <div style={{ background: `linear-gradient(180deg, ${C.bg800}, ${C.bg900})`, borderRadius: 18,
+        border: `1px solid ${C.stroke}`, padding: "18px 24px" }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: C.orange, letterSpacing: "0.12em",
+          textTransform: "uppercase", marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}>
+          <Sparkles size={13} strokeWidth={2.6} /> O programa em números
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14 }}>
+          <NumeroGrande icon={Heart} cor="#FF6B9D" valor={totalRecs} label="Reconhecimentos" />
+          <NumeroGrande icon={Users} cor="#3BA7C4" valor={pessoasReconhecidas} label="Pessoas reconhecidas" />
+          <NumeroGrande icon={Flame} cor={C.orange} valor={`${pctParticipacao}%`} label="Participação" />
+          <NumeroGrande icon={TrendingUp} cor={C.gold} valor={totalCurtidas} label="Curtidas" />
+          <NumeroGrande icon={BadgeCheck} cor="#B566D9" valor={publicos} label="Públicos" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ icon: Icon, cor, valor, label }) {
+  return (
+    <div style={{ background: "rgba(0,0,0,0.22)", borderRadius: 12, padding: "11px 8px", textAlign: "center",
+      border: `1px solid ${C.stroke}` }}>
+      <Icon size={16} color={cor} strokeWidth={2.4} style={{ marginBottom: 5 }} />
+      <div style={{ fontSize: 19, fontWeight: 800, color: C.white, lineHeight: 1 }}>{valor}</div>
+      <div style={{ fontSize: 10.5, color: C.textMute, fontWeight: 600, marginTop: 3 }}>{label}</div>
+    </div>
+  );
+}
+
+function NumeroGrande({ icon: Icon, cor, valor, label }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ width: 40, height: 40, borderRadius: 11, margin: "0 auto 8px",
+        background: `${cor}1A`, border: `1px solid ${cor}40`,
+        display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Icon size={19} color={cor} strokeWidth={2.4} />
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: C.white, lineHeight: 1 }}>{valor}</div>
+      <div style={{ fontSize: 11.5, color: C.textMute, fontWeight: 600, marginTop: 4 }}>{label}</div>
+    </div>
+  );
+}
+
+function MetaEquipe({ totalRecs }) {
+  const META = 30;
+  const pct = Math.min(100, Math.round((totalRecs / META) * 100));
+  const faltam = Math.max(0, META - totalRecs);
+  return (
+    <div style={{ position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${C.card}, ${C.bg800})`,
+      borderRadius: 18, border: `1px solid ${C.stroke}`, padding: "22px 24px", boxShadow: "0 10px 36px rgba(0,0,0,0.3)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
+        <Flame size={18} color={C.orange} strokeWidth={2.5} />
+        <span style={{ fontWeight: 750, fontSize: 15, color: C.white }}>Meta da equipe</span>
+        <span style={{ marginLeft: "auto", fontSize: 20, fontWeight: 800, color: C.orange }}>{pct}%</span>
+      </div>
+      <div style={{ height: 12, borderRadius: 999, background: "rgba(0,0,0,0.3)", overflow: "hidden", marginBottom: 12,
+        border: `1px solid ${C.stroke}` }}>
+        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999,
+          background: `linear-gradient(90deg, ${C.orange}, ${C.gold})`, transition: "width .6s",
+          boxShadow: `0 0 14px ${C.orangeGlow}` }} />
+      </div>
+      <div style={{ fontSize: 13, color: C.textMute, lineHeight: 1.5 }}>
+        {faltam > 0
+          ? <>Faltam <strong style={{ color: C.white }}>{faltam} reconhecimentos</strong> para bater a meta do mês!</>
+          : <strong style={{ color: C.gold }}>Meta batida! Parabéns, time! 🎉</strong>}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 //  MURAL
 // ============================================================
-function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconhecer }) {
+function Mural({ recs, people, ranking, openProfile, goReconhecer, reacoes, minhaReacao, reagir, favoritos, toggleFavorito }) {
   const [heroErro, setHeroErro] = useState(false);
   const [tripErro, setTripErro] = useState(false);
   const [busca, setBusca] = useState("");
@@ -616,6 +827,9 @@ function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconh
         </div>
       </section>
 
+      {/* Dashboard pessoal + Reconhecimento em números */}
+      <DashboardPessoal recs={recs} people={people} ranking={ranking} />
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24, alignItems: "start" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -668,7 +882,9 @@ function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconh
               </div>
             ) : (
               publicRecs.map((r) => (
-                <RecCard key={r.id} rec={r} people={people} liked={liked[r.id]} toggleLike={toggleLike} openProfile={openProfile} />
+                <RecCard key={r.id} rec={r} people={people} openProfile={openProfile}
+                  reacoesRec={reacoes[r.id]} minhaReacaoRec={minhaReacao[r.id]} reagir={reagir}
+                  favoritado={favoritos[r.id]} toggleFavorito={toggleFavorito} />
               ))
             )}
           </div>
@@ -700,9 +916,16 @@ function Mural({ recs, people, liked, toggleLike, ranking, openProfile, goReconh
   );
 }
 
-function RecCard({ rec, people, liked, toggleLike, openProfile }) {
+function RecCard({ rec, people, openProfile, reacoesRec, minhaReacaoRec, reagir, favoritado, toggleFavorito }) {
   const from = personById(rec.fromId, people);
   const to = personById(rec.toId, people);
+  const [hoverReacoes, setHoverReacoes] = useState(false);
+  // total de reações = curtidas originais (likes) + reações novas
+  const totalReacoes = (rec.likes || 0) + Object.values(reacoesRec || {}).reduce((s, n) => s + n, 0);
+  // emojis ativos (com contagem > 0)
+  const emojisAtivos = REACOES.filter((re) => (reacoesRec?.[re.id] || 0) > 0);
+  const minha = minhaReacaoRec ? REACOES.find((re) => re.id === minhaReacaoRec) : null;
+
   return (
     <article className="lift glow" style={{ background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`,
       borderRadius: 18, border: `1px solid ${C.stroke}`, padding: "18px 20px",
@@ -718,22 +941,57 @@ function RecCard({ rec, people, liked, toggleLike, openProfile }) {
             <span style={{ fontSize: 12.5, color: C.textMute, fontWeight: 500 }}>{timeAgo(rec.days)}</span>
           </div>
         </div>
+        {/* Favoritar */}
+        {toggleFavorito && (
+          <button onClick={() => toggleFavorito(rec.id)} className="lift" title={favoritado ? "Remover dos favoritos" : "Favoritar"}
+            style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center",
+              background: favoritado ? `${C.gold}1F` : "transparent", border: `1px solid ${favoritado ? C.gold + "66" : "transparent"}` }}>
+            <Star size={16} strokeWidth={2.4} fill={favoritado ? C.gold : "none"} color={favoritado ? C.gold : C.textDim} />
+          </button>
+        )}
         <div style={{ flexShrink: 0 }}><CatChip catId={rec.cat} /></div>
       </div>
       <div style={{ position: "relative", margin: "0 0 14px" }}>
         <Quote size={26} color={C.orange} fill={C.orange} strokeWidth={0}
-          style={{ position: "absolute", left: -2, top: -6, opacity: 0.18 }} />
+          style={{ position: "absolute", left: 0, top: -6, opacity: 0.18 }} />
         <p style={{ margin: 0, paddingLeft: 34, fontSize: 15, lineHeight: 1.55, color: C.text,
           fontFamily: "'Inter',sans-serif" }}>{rec.msg}</p>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <button onClick={() => toggleLike(rec.id)} style={{ display: "flex", alignItems: "center", gap: 7,
-          padding: "7px 13px", borderRadius: 999, border: `1px solid ${liked ? C.orange + "66" : C.stroke}`,
-          background: liked ? `${C.orange}1F` : "rgba(255,255,255,0.03)", color: liked ? C.orangeSoft : C.textMute,
-          fontWeight: 650, fontSize: 13.5, transition: "all .15s" }}>
-          <Heart size={16} strokeWidth={2.4} fill={liked ? C.orange : "none"} color={liked ? C.orange : C.textMute} />
-          {rec.likes}
-        </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* Botão de reação com paleta no hover */}
+        <div style={{ position: "relative" }} onMouseEnter={() => setHoverReacoes(true)} onMouseLeave={() => setHoverReacoes(false)}>
+          <button onClick={() => reagir && reagir(rec.id, minha ? minha.id : "heart")} style={{
+            display: "flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999,
+            border: `1px solid ${minha ? C.orange + "66" : C.stroke}`,
+            background: minha ? `${C.orange}1F` : "rgba(255,255,255,0.03)",
+            color: minha ? C.orangeSoft : C.textMute, fontWeight: 650, fontSize: 13.5 }}>
+            {minha ? <span style={{ fontSize: 15 }}>{minha.emoji}</span>
+                   : <Heart size={16} strokeWidth={2.4} color={C.textMute} />}
+            {totalReacoes > 0 ? totalReacoes : "Reagir"}
+          </button>
+          {/* Paleta de reações */}
+          {hoverReacoes && reagir && (
+            <div className="fade" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, zIndex: 30,
+              display: "flex", gap: 3, padding: "7px 9px", background: `linear-gradient(180deg, ${C.cardHi}, ${C.card})`,
+              border: `1px solid ${C.strokeHi}`, borderRadius: 999, boxShadow: "0 12px 36px rgba(0,0,0,0.5)" }}>
+              {REACOES.map((re) => (
+                <button key={re.id} onClick={() => { reagir(rec.id, re.id); setHoverReacoes(false); }}
+                  title={re.label} className="lift" style={{ fontSize: 20, padding: "3px 5px", borderRadius: 8,
+                    background: minhaReacaoRec === re.id ? `${C.orange}22` : "transparent", lineHeight: 1 }}>
+                  {re.emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* Emojis ativos (resumo) */}
+        {emojisAtivos.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {emojisAtivos.slice(0, 4).map((re) => (
+              <span key={re.id} style={{ fontSize: 14 }} title={`${re.label}: ${reacoesRec[re.id]}`}>{re.emoji}</span>
+            ))}
+          </div>
+        )}
         <span style={{ fontSize: 12.5, color: C.textDim, marginLeft: "auto", fontWeight: 600 }}>
           +{Math.round(scoreOf(rec) * 10) / 10} pts no ranking
         </span>
@@ -1064,6 +1322,134 @@ function Ranking({ ranking, openProfile }) {
 }
 
 // ============================================================
+//  RADAR DA INTELIGÊNCIA (grafo de quem reconheceu quem)
+// ============================================================
+function Radar({ recs, people, openProfile }) {
+  const [hover, setHover] = useState(null);
+  // pessoas que aparecem (que enviaram ou receberam)
+  const ativos = people.filter((p) => recs.some((r) => r.fromId === p.id || r.toId === p.id));
+  const N = ativos.length;
+  const W = 760, H = 540, cx = W / 2, cy = H / 2;
+  const raio = Math.min(W, H) / 2 - 90;
+
+  // posição de cada pessoa em círculo
+  const pos = {};
+  ativos.forEach((p, i) => {
+    const ang = (i / N) * Math.PI * 2 - Math.PI / 2;
+    pos[p.id] = { x: cx + raio * Math.cos(ang), y: cy + raio * Math.sin(ang), p };
+  });
+
+  // arestas (quem reconheceu quem) - agrupa contagem
+  const arestas = [];
+  recs.forEach((r) => {
+    if (pos[r.fromId] && pos[r.toId] && r.fromId !== r.toId) {
+      const existente = arestas.find((a) => a.de === r.fromId && a.para === r.toId);
+      if (existente) existente.peso++;
+      else arestas.push({ de: r.fromId, para: r.toId, peso: 1 });
+    }
+  });
+
+  // quantos reconhecimentos cada um recebeu (pra tamanho do nó)
+  const recebidos = {};
+  ativos.forEach((p) => { recebidos[p.id] = recs.filter((r) => r.toId === p.id).length; });
+  const maxReceb = Math.max(1, ...Object.values(recebidos));
+
+  const destacado = (pid) => hover && (hover === pid || arestas.some((a) =>
+    (a.de === hover && a.para === pid) || (a.para === hover && a.de === pid)));
+
+  return (
+    <div className="fade">
+      <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: C.white,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <Sparkles size={24} color={C.orange} strokeWidth={2.4} /> Radar da Inteligência
+      </h1>
+      <p style={{ color: C.textMute, fontSize: 15, margin: "0 0 24px", display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        O mapa de colaboração do time: cada linha é um reconhecimento. Passe o mouse numa pessoa para destacar suas conexões.
+        <Ajuda texto="Cada bolinha é uma pessoa. As linhas mostram quem reconheceu quem. Quanto maior a bolinha, mais reconhecimentos a pessoa recebeu. Quanto mais o time se reconhece, mais conectado fica o radar." />
+      </p>
+
+      <div style={{ background: `radial-gradient(circle at 50% 40%, ${C.bg800}, ${C.bg900})`, borderRadius: 20,
+        border: `1px solid ${C.stroke}`, padding: 16, boxShadow: "0 16px 50px rgba(0,0,0,0.4)", overflow: "hidden" }}>
+        {N === 0 ? (
+          <div style={{ padding: 60, textAlign: "center", color: C.textMute }}>
+            <Sparkles size={40} color={C.textDim} style={{ marginBottom: 12 }} /><br />
+            Ainda não há conexões. Quando o time começar a se reconhecer, o radar ganha vida!
+          </div>
+        ) : (
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+            {/* círculos de fundo decorativos */}
+            {[raio, raio * 0.66, raio * 0.33].map((r, i) => (
+              <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={C.stroke} strokeWidth="1" opacity="0.4" />
+            ))}
+            {/* linha central com brilho */}
+            <circle cx={cx} cy={cy} r={raio} fill="none" stroke={C.orange} strokeWidth="1" opacity="0.15" />
+
+            {/* arestas */}
+            {arestas.map((a, i) => {
+              const de = pos[a.de], para = pos[a.para];
+              const ativo = destacado(a.de) && destacado(a.para) && hover;
+              return (
+                <line key={i} x1={de.x} y1={de.y} x2={para.x} y2={para.y}
+                  stroke={ativo ? C.orange : C.strokeHi}
+                  strokeWidth={ativo ? 2 + a.peso : 1 + a.peso * 0.5}
+                  opacity={hover ? (ativo ? 0.9 : 0.12) : 0.4} style={{ transition: "all .2s" }} />
+              );
+            })}
+
+            {/* nós (pessoas) */}
+            {ativos.map((p) => {
+              const { x, y } = pos[p.id];
+              const tam = 16 + (recebidos[p.id] / maxReceb) * 16;
+              const ativo = !hover || destacado(p.id);
+              const ehLider = recebidos[p.id] === maxReceb && maxReceb > 0;
+              return (
+                <g key={p.id} onMouseEnter={() => setHover(p.id)} onMouseLeave={() => setHover(null)}
+                  onClick={() => openProfile(p.id)} style={{ cursor: "pointer", transition: "opacity .2s" }}
+                  opacity={ativo ? 1 : 0.3}>
+                  {ehLider && <circle cx={x} cy={y} r={tam + 6} fill="none" stroke={C.gold} strokeWidth="2" opacity="0.5" />}
+                  <circle cx={x} cy={y} r={tam} fill={`url(#grad${p.id})`}
+                    stroke={p.id === ME ? C.white : (ehLider ? C.gold : C.orangeDeep)} strokeWidth={p.id === ME ? 2.5 : 1.5} />
+                  <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
+                    fill="#fff" fontSize={tam * 0.62} fontWeight="700" style={{ pointerEvents: "none" }}>
+                    {p.initials}
+                  </text>
+                  <text x={x} y={y + tam + 14} textAnchor="middle" fill={ativo ? C.text : C.textDim}
+                    fontSize="12" fontWeight="600" style={{ pointerEvents: "none" }}>
+                    {p.name.split(" ")[0]}
+                  </text>
+                  <defs>
+                    <radialGradient id={`grad${p.id}`}>
+                      <stop offset="0%" stopColor={p.id === ME ? C.graphite : C.orange} />
+                      <stop offset="100%" stopColor={p.id === ME ? C.black : C.orangeDeep} />
+                    </radialGradient>
+                  </defs>
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+
+      {/* Legenda */}
+      <div style={{ display: "flex", gap: 20, marginTop: 16, flexWrap: "wrap", justifyContent: "center" }}>
+        <LegendaRadar cor={C.gold} texto="Mais reconhecido" />
+        <LegendaRadar cor={C.orange} texto="Bolinha maior = mais reconhecimentos" />
+        <LegendaRadar cor={C.white} texto="Você" />
+      </div>
+    </div>
+  );
+}
+
+function LegendaRadar({ cor, texto }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.textMute }}>
+      <span style={{ width: 12, height: 12, borderRadius: "50%", background: cor, flexShrink: 0 }} />
+      {texto}
+    </div>
+  );
+}
+
+// ============================================================
 //  HALL DA FAMA
 // ============================================================
 function Hall({ hall }) {
@@ -1162,7 +1548,7 @@ function Mensagens({ recs, people, openProfile }) {
 // ============================================================
 //  PERFIL
 // ============================================================
-function Perfil({ id, people, recs, ranking, liked, toggleLike, goReconhecer, saveBio }) {
+function Perfil({ id, people, recs, ranking, goReconhecer, saveBio, reacoes, minhaReacao, reagir, favoritos, toggleFavorito }) {
   const p = personById(id, people);
   const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState("");
@@ -1267,6 +1653,9 @@ function Perfil({ id, people, recs, ranking, liked, toggleLike, goReconhecer, sa
         </div>
       </div>
 
+      {/* Conquistas / Badges */}
+      <SecaoConquistas id={id} recs={recs} />
+
       <h2 style={{ fontSize: 17, fontWeight: 750, margin: "0 0 14px", color: C.white }}>Reconhecimentos recebidos</h2>
       {received.length === 0 ? (
         <div style={{ color: C.textMute, fontSize: 14, background: `linear-gradient(180deg, ${C.card}, ${C.bg800})`,
@@ -1276,10 +1665,52 @@ function Perfil({ id, people, recs, ranking, liked, toggleLike, goReconhecer, sa
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
           {received.map((r) => (
-            <RecCard key={r.id} rec={r} people={people} liked={liked[r.id]} toggleLike={toggleLike} openProfile={() => {}} />
+            <RecCard key={r.id} rec={r} people={people} openProfile={() => {}}
+              reacoesRec={reacoes[r.id]} minhaReacaoRec={minhaReacao[r.id]} reagir={reagir}
+              favoritado={favoritos[r.id]} toggleFavorito={toggleFavorito} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- Seção de Conquistas (badges) ----------
+function SecaoConquistas({ id, recs }) {
+  const badges = badgesDe(id, recs);
+  const conquistadas = badges.filter((b) => b.conquistada);
+  const bloqueadas = badges.filter((b) => !b.conquistada);
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <h2 style={{ fontSize: 17, fontWeight: 750, margin: "0 0 4px", color: C.white, display: "flex", alignItems: "center", gap: 9 }}>
+        <Medal size={19} color={C.gold} strokeWidth={2.4} /> Conquistas
+        <span style={{ fontSize: 13, color: C.textMute, fontWeight: 600 }}>({conquistadas.length}/{badges.length})</span>
+      </h2>
+      <p style={{ color: C.textMute, fontSize: 13.5, margin: "0 0 16px" }}>Medalhas desbloqueadas ao participar do programa.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+        {[...conquistadas, ...bloqueadas].map((b) => {
+          const Icon = b.icon;
+          const on = b.conquistada;
+          return (
+            <div key={b.id} className={on ? "lift" : ""} title={b.desc} style={{
+              position: "relative", background: on ? `linear-gradient(180deg, ${C.card}, ${C.bg800})` : "rgba(255,255,255,0.02)",
+              borderRadius: 14, border: `1px solid ${on ? b.cor + "55" : C.stroke}`, padding: "16px 14px",
+              textAlign: "center", opacity: on ? 1 : 0.45, overflow: "hidden",
+              animation: on ? "brilhoBadge 3s ease-in-out infinite" : "none" }}>
+              {on && <div style={{ position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)",
+                width: 80, height: 50, background: `radial-gradient(circle, ${b.cor}44 0%, transparent 70%)`, pointerEvents: "none" }} />}
+              <div style={{ position: "relative", width: 46, height: 46, borderRadius: "50%", margin: "0 auto 10px",
+                background: on ? `linear-gradient(135deg, ${b.cor}, ${b.cor}AA)` : "rgba(255,255,255,0.05)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: on ? `0 6px 18px ${b.cor}55` : "none" }}>
+                {on ? <Icon size={22} color="#fff" strokeWidth={2.3} /> : <Lock size={18} color={C.textDim} />}
+              </div>
+              <div style={{ fontSize: 12.5, fontWeight: 750, color: on ? C.white : C.textMute, lineHeight: 1.3 }}>{b.nome}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1351,7 +1782,7 @@ function Login({ onEntrar, aprovados, solicitarAcesso }) {
       )}
       <div style={{ position: "absolute", inset: 0,
         background: `radial-gradient(900px 600px at 75% 30%, rgba(255,112,32,0.25) 0%, transparent 60%), linear-gradient(120deg, ${C.black}F2 0%, ${C.black}E8 50%, rgba(219,80,20,0.25) 130%)` }} />
-      <div style={{ position: "absolute", inset: 0, opacity: 0.08, pointerEvents: "none",
+      <div style={{ position: "absolute", inset: 0, opacity: 0.06, pointerEvents: "none",
         backgroundImage: `url(${ASSETS.grafismoElos})`, backgroundSize: "500px", backgroundRepeat: "repeat", mixBlendMode: "screen" }} />
       {!eloErro && (
         <img src={ASSETS.elo} alt="" onError={() => setEloErro(true)}
@@ -1466,7 +1897,7 @@ function Login({ onEntrar, aprovados, solicitarAcesso }) {
           </div>
         </div>
         <p style={{ textAlign: "center", fontSize: 11.5, color: C.textDim, marginTop: 18 }}>
-          Inteligência de Suprimentos · GOL Linhas Aéreas
+          Inteligência · Compras · GOL Linhas Aéreas
         </p>
       </div>
     </div>
